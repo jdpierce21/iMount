@@ -1,0 +1,49 @@
+name: Create Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Create archive
+        run: |
+          # Create a clean archive without .git directory
+          mkdir -p /tmp/nas_mount
+          cp -r * /tmp/nas_mount/ 2>/dev/null || true
+          cd /tmp
+          tar -czf nas_mount.tar.gz nas_mount/
+          mv nas_mount.tar.gz $GITHUB_WORKSPACE/
+      
+      - name: Create Release
+        uses: ncipollo/release-action@v1
+        with:
+          artifacts: "nas_mount.tar.gz"
+          body: |
+            ## Installation
+            
+            ### One-line install:
+            ```bash
+            curl -fsSL https://raw.githubusercontent.com/jdpierce21/nas_mount/main/install.sh | bash
+            ```
+            
+            ### Manual install:
+            ```bash
+            # Download and extract
+            curl -L https://github.com/jdpierce21/nas_mount/releases/latest/download/nas_mount.tar.gz | tar -xz
+            cd nas_mount
+            ./install.sh
+            ```
+            
+            See [README](https://github.com/jdpierce21/nas_mount#readme) for full documentation.
+          draft: false
+          prerelease: false

@@ -1,0 +1,26 @@
+# Ignore logs
+logs/
+*.log
+*.err
+
+# Ignore credentials
+.nas_credentials
+
+# Ignore generated config (use install.sh to create)
+config.sh
+
+# Ignore macOS files
+.DS_Store
+._*
+
+# Ignore distribution packages
+*.tar.gz
+*.zip
+
+# Ignore backup files
+*.backup
+*.bak
+
+# Ignore editor files
+*.swp
+*~
