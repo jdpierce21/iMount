@@ -51,7 +51,6 @@ main() {
             log_info "Removed credentials"
         fi
     fi
-    
     # Handle mount directories
     if [[ -f "$(get_config_file)" ]]; then
         load_config
@@ -62,7 +61,6 @@ main() {
             rmdir "$MOUNT_ROOT" 2>/dev/null || true
         fi
     fi
-    
     # Handle script directory
     if prompt_yn "Remove script directory?" "Y"; then
         # Move to safe location before removing
