@@ -132,17 +132,6 @@ main() {
         fi
     fi
     
-    # Done
-    success "Installation complete"
-    message "Commands: nas-mount, nas-unmount, nas-status"
-    
-    if [[ "$ADD_ALIASES" == "yes" ]]; then
-        local shell_rc
-        if shell_rc=$(get_shell_rc); then
-            message "Run 'source $shell_rc' to activate aliases"
-        fi
-    fi
-    
     # Ask if user wants to save preferences
     if prompt_yn "Save these preferences as defaults for future installations?" "Y"; then
         save_user_defaults
@@ -155,6 +144,17 @@ main() {
             cp "$HOME/.nas_mount_defaults" "$(get_config_dir)/defaults.sh"
             progress_done
             message "You can now delete ~/.nas_mount_defaults"
+        fi
+    fi
+    
+    # Done - show completion message last
+    success "Installation complete"
+    message "Commands: nas-mount, nas-unmount, nas-status"
+    
+    if [[ "$ADD_ALIASES" == "yes" ]]; then
+        local shell_rc
+        if shell_rc=$(get_shell_rc); then
+            message "Run 'source $shell_rc' to activate aliases"
         fi
     fi
 }
