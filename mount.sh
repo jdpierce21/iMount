@@ -35,13 +35,26 @@ cmd_mount() {
         
         # Execute mount
         progress "Mounting $share"
-        if eval "$mount_cmd" >/dev/null 2>&1; then
-            progress_done
-            log_info "Mounted $share"
+        # Execute directly based on platform to avoid eval quote issues
+        if is_macos; then
+            if mount_smbfs -N -o nobrowse "//${NAS_USER}:${NAS_PASS}@${NAS_HOST}/${share}" "${mount_point}" >/dev/null 2>&1; then
+                progress_done
+                log_info "Mounted $share"
+            else
+                progress_fail
+                log_error "Failed to mount $share"
+                ((failed++))
+            fi
         else
-            progress_fail
-            log_error "Failed to mount $share"
-            ((failed++))
+            # Linux mount command
+            if sudo mount -t cifs "//${NAS_HOST}/${share}" "${mount_point}" -o "username=${NAS_USER},password=${NAS_PASS},uid=$(id -u),gid=$(id -g),iocharset=utf8,file_mode=0777,dir_mode=0777" >/dev/null 2>&1; then
+                progress_done
+                log_info "Mounted $share"
+            else
+                progress_fail
+                log_error "Failed to mount $share"
+                ((failed++))
+            fi
         fi
     done
     
@@ -72,13 +85,25 @@ cmd_unmount() {
         
         # Execute unmount
         progress "Unmounting $share"
-        if eval "$unmount_cmd" >/dev/null 2>&1; then
-            progress_done
-            log_info "Unmounted $share"
-            ((unmounted++))
+        # Execute directly based on platform to avoid eval issues
+        if is_macos; then
+            if umount "${mount_point}" >/dev/null 2>&1; then
+                progress_done
+                log_info "Unmounted $share"
+                ((unmounted++))
+            else
+                progress_fail
+                log_error "Failed to unmount $share"
+            fi
         else
-            progress_fail
-            log_error "Failed to unmount $share"
+            if sudo umount "${mount_point}" >/dev/null 2>&1; then
+                progress_done
+                log_info "Unmounted $share"
+                ((unmounted++))
+            else
+                progress_fail
+                log_error "Failed to unmount $share"
+            fi
         fi
     done
     
