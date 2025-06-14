@@ -28,6 +28,18 @@ check_dependencies() {
             message "  Arch: sudo pacman -S cifs-utils"
             return 1
         fi
+        
+        # Check if passwordless sudo is configured for mount
+        if ! sudo -n mount --version >/dev/null 2>&1; then
+            warning "Passwordless sudo not configured for mount commands"
+            message ""
+            message "For automatic mounting to work, please run this command:"
+            message "  echo \"$USER ALL=(ALL) NOPASSWD: /usr/bin/mount, /usr/bin/umount\" | sudo tee /etc/sudoers.d/nas-mount"
+            message ""
+            message "This allows the script to mount without password prompts."
+            message "Note: You'll be prompted for sudo password when running mount commands."
+            # Don't return error - just warn
+        fi
     fi
     return 0
 }
@@ -145,37 +157,54 @@ remove_launchagent() {
 # === Linux systemd ===
 create_systemd_service() {
     local mount_script="$1"
+    local service_path
+    service_path=$(get_systemd_service_path)
     
-    # For Linux, add to shell profile instead of systemd
-    # This allows sudo password prompts
-    message "Note: On Linux, auto-mount will prompt for sudo password at login"
+    ensure_dir "$(dirname "$service_path")"
     
-    local shell_rc
-    shell_rc=$(get_shell_rc) || return 1
-    
-    # Check if auto-mount already exists
-    if grep -q "# NAS auto-mount at login" "$shell_rc"; then
-        return 0
-    fi
-    
-    # Add auto-mount to shell profile
-    cat >> "$shell_rc" <<EOF
+    cat > "$service_path" <<EOF
+[Unit]
+Description=Mount NAS shares
+After=network-online.target
+Wants=network-online.target
 
-# NAS auto-mount at login
-if [[ -f "$mount_script" ]] && [[ -z "\${NAS_MOUNTS_STARTED:-}" ]]; then
-    export NAS_MOUNTS_STARTED=1
-    echo "Mounting NAS shares..."
-    "$mount_script" mount
-fi
+[Service]
+Type=oneshot
+ExecStart=${mount_script} mount
+ExecStop=${mount_script} unmount
+RemainAfterExit=yes
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=default.target
 EOF
     
-    return 0
+    # Enable and start the service
+    systemctl --user daemon-reload
+    systemctl --user enable "${SYSTEMD_SERVICE_NAME}.service"
+    
+    # Only start if passwordless sudo is configured
+    if sudo -n mount --version >/dev/null 2>&1; then
+        systemctl --user start "${SYSTEMD_SERVICE_NAME}.service"
+    else
+        message "Note: Auto-mount will start after reboot once passwordless sudo is configured"
+    fi
 }
 
 remove_systemd_service() {
-    # Remove from shell profile
-    local shell_rc
+    local service_path
+    service_path=$(get_systemd_service_path)
     
+    if [[ -f "$service_path" ]]; then
+        systemctl --user stop "${SYSTEMD_SERVICE_NAME}.service" 2>/dev/null || true
+        systemctl --user disable "${SYSTEMD_SERVICE_NAME}.service" 2>/dev/null || true
+        rm -f "$service_path"
+        systemctl --user daemon-reload
+    fi
+    
+    # Also remove any shell profile entries from previous version
+    local shell_rc
     for shell_rc in "$HOME/.bashrc" "$HOME/.zshrc"; do
         if [[ -f "$shell_rc" ]] && grep -q "# NAS auto-mount at login" "$shell_rc"; then
             # Create backup
@@ -188,17 +217,6 @@ remove_systemd_service() {
             fi
         fi
     done
-    
-    # Also remove any old systemd service if it exists
-    local service_path
-    service_path=$(get_systemd_service_path)
-    
-    if [[ -f "$service_path" ]]; then
-        systemctl --user stop "${SYSTEMD_SERVICE_NAME}.service" 2>/dev/null || true
-        systemctl --user disable "${SYSTEMD_SERVICE_NAME}.service" 2>/dev/null || true
-        rm -f "$service_path"
-        systemctl --user daemon-reload
-    fi
 }
 
 # === Shell Integration ===

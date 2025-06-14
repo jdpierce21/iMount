@@ -97,6 +97,10 @@ error() {
     [[ -n "${2:-}" ]] && echo "  $2" >&2
 }
 
+warning() {
+    echo "⚠️  Warning: $1" >&2
+}
+
 # === Information ===
 info() {
     echo "Note: $1"
