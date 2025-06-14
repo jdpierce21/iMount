@@ -123,6 +123,17 @@ if [[ -n "${SHARES:-}" ]]; then
         cmd=$(get_mount_command "${SHARES[0]}" "$(get_mount_root)/${MOUNT_DIR_PREFIX}${SHARES[0]}")
         # Mask password in output
         echo "  ${cmd//$NAS_PASS/****}"
+        echo ""
+        echo "  Password details:"
+        echo "    Length: ${#NAS_PASS}"
+        echo "    First 3 chars: ${NAS_PASS:0:3}***"
+        echo "    Last 3 chars: ***${NAS_PASS: -3}"
+        echo "    Contains spaces: $(echo "$NAS_PASS" | grep -q ' ' && echo "YES" || echo "NO")"
+        echo "    Contains quotes: $(echo "$NAS_PASS" | grep -q "'" && echo "YES" || echo "NO")"
+        echo "    Contains dollars: $(echo "$NAS_PASS" | grep -q '\$' && echo "YES" || echo "NO")"
+        echo ""
+        echo "  ACTUAL COMMAND (CONTAINS PASSWORD - BE CAREFUL):"
+        echo "    $cmd"
     else
         echo "  Cannot generate - missing NAS_HOST, NAS_USER, or NAS_PASS"
     fi
@@ -184,10 +195,23 @@ echo ""
 echo "=== Debug Mount Attempt ==="
 echo "Attempting to mount first share with verbose output..."
 if [[ -f "mount.sh" ]] && [[ -n "${SHARES:-}" ]]; then
-    echo "Running: bash -x mount.sh mount (first 50 lines)"
-    bash -x mount.sh mount 2>&1 | head -50 | sed 's/^/  /'
+    echo "Running: bash -x mount.sh mount (showing mount commands only)"
+    bash -x mount.sh mount 2>&1 | grep -E "(mount_smbfs|eval.*mount|progress.*Mount)" | sed 's/^/  /'
 else
     echo "✗ Cannot run mount test"
+fi
+
+echo ""
+echo "=== Manual Mount Test ==="
+if [[ -n "${SHARES:-}" ]] && [[ -n "${NAS_HOST:-}" ]] && [[ -n "${NAS_USER:-}" ]] && [[ -n "${NAS_PASS:-}" ]]; then
+    share="${SHARES[0]}"
+    mount_point="$(get_mount_root)/${MOUNT_DIR_PREFIX}${share}"
+    echo "Testing manual mount of $share:"
+    echo "  Mount point: $mount_point"
+    echo "  Is currently mounted: $(is_mounted "$mount_point" && echo "YES" || echo "NO")"
+    echo ""
+    echo "  Try this command manually (contains password):"
+    echo "    $(get_mount_command "$share" "$mount_point")"
 fi
 
 echo ""
