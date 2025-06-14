@@ -45,7 +45,7 @@ readonly _DEFAULTS_SH_LOADED=1
 
 # === Default Share List ===
 # Space-separated list of default shares
-: ${DEFAULT_SHARES:="${NAS_MOUNT_DEFAULT_SHARES:-backups documents media notes PacificRim photos}"}
+: ${DEFAULT_SHARES:="${NAS_MOUNT_DEFAULT_SHARES:-backups documents media notes photos}"}
 
 # === GitHub Repository Defaults ===
 # GitHub username
@@ -101,18 +101,25 @@ get_default_script_dir() {
 : ${DEFAULT_TEST_FILE_PREFIX:="${NAS_MOUNT_TEST_FILE_PREFIX:-.nas_mount_test_}"}
 
 # === Usage Information ===
-# To override any default value, export the corresponding environment variable
-# before running the scripts. For example:
+# To override any default value, you can:
+# 1. Export environment variables before running the scripts
+# 2. Create config/defaults.sh in the script directory
 #
+# Example environment variables:
 # export NAS_MOUNT_DEFAULT_HOST="192.168.1.100"
 # export NAS_MOUNT_DIR_PREFIX="share_"
 # export NAS_MOUNT_DEFAULT_SHARES="documents photos music"
-#
-# You can also create a file ~/.nas_mount_defaults and source it:
-# export NAS_MOUNT_DEFAULT_HOST="192.168.1.100"
-# export NAS_MOUNT_DIR_PREFIX="share_"
 
 # Source user defaults if they exist
+# First check for legacy location for backward compatibility
 if [[ -f "$HOME/.nas_mount_defaults" ]]; then
     source "$HOME/.nas_mount_defaults"
+fi
+
+# Then check for new location (takes precedence)
+if [[ -n "${BASH_SOURCE[0]:-}" ]]; then
+    local_defaults="$(dirname "$(dirname "${BASH_SOURCE[0]}")")/${DEFAULT_CONFIG_DIR_NAME:-config}/defaults.sh"
+    if [[ -f "$local_defaults" ]]; then
+        source "$local_defaults"
+    fi
 fi

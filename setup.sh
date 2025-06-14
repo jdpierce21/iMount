@@ -19,8 +19,12 @@ main() {
     # Start configuration
     
     # Check if we have saved defaults
-    if [[ -f "$HOME/.nas_mount_defaults" ]]; then
+    local config_defaults="$(get_config_dir)/defaults.sh"
+    if [[ -f "$config_defaults" ]]; then
+        message "Found saved preferences in config/defaults.sh"
+    elif [[ -f "$HOME/.nas_mount_defaults" ]]; then
         message "Found saved preferences from previous installation"
+        message "Consider moving $HOME/.nas_mount_defaults to $config_defaults"
     fi
     
     # Check dependencies
@@ -143,6 +147,16 @@ main() {
     if prompt_yn "Save these preferences as defaults for future installations?" "Y"; then
         save_user_defaults
     fi
+    
+    # Check if old defaults file exists and suggest migration
+    if [[ -f "$HOME/.nas_mount_defaults" ]] && [[ ! -f "$(get_config_dir)/defaults.sh" ]]; then
+        if prompt_yn "Migrate existing defaults from ~/.nas_mount_defaults to config/defaults.sh?" "Y"; then
+            progress "Migrating defaults"
+            cp "$HOME/.nas_mount_defaults" "$(get_config_dir)/defaults.sh"
+            progress_done
+            message "You can now delete ~/.nas_mount_defaults"
+        fi
+    fi
 }
 
 # === Create configuration ===
@@ -176,7 +190,7 @@ EOF
 
 # === Save user defaults ===
 save_user_defaults() {
-    local defaults_file="$HOME/.nas_mount_defaults"
+    local defaults_file="$(get_config_dir)/defaults.sh"
     local temp_file="${defaults_file}.tmp"
     
     progress "Saving preferences"

@@ -65,11 +65,36 @@ echo "  Debug Log Retention: $DEFAULT_DEBUG_LOG_RETENTION logs"
 echo "  Test File Prefix: $DEFAULT_TEST_FILE_PREFIX"
 echo ""
 
-if [[ -f "$HOME/.nas_mount_defaults" ]]; then
-    echo "=== User Defaults File Found ==="
-    echo "Location: $HOME/.nas_mount_defaults"
-    echo "Active overrides:"
-    grep "^export NAS_MOUNT_" "$HOME/.nas_mount_defaults" | sed 's/^export /  /' || echo "  (none)"
+# Check for user defaults in both locations
+echo "=== User Defaults Files ==="
+local_defaults="$SCRIPT_DIR/config/defaults.sh"
+legacy_defaults="$HOME/.nas_mount_defaults"
+defaults_found=false
+
+if [[ -f "$local_defaults" ]]; then
+    echo "Location: $local_defaults (ACTIVE)"
+    echo "Overrides:"
+    grep "^export NAS_MOUNT_" "$local_defaults" | sed 's/^export /  /' || echo "  (none)"
+    echo ""
+    defaults_found=true
+fi
+
+if [[ -f "$legacy_defaults" ]]; then
+    if [[ "$defaults_found" == "true" ]]; then
+        echo "Legacy location: $legacy_defaults (IGNORED - config/defaults.sh takes precedence)"
+    else
+        echo "Legacy location: $legacy_defaults (ACTIVE)"
+        echo "Overrides:"
+        grep "^export NAS_MOUNT_" "$legacy_defaults" | sed 's/^export /  /' || echo "  (none)"
+    fi
+    echo "Note: Consider moving this file to $local_defaults"
+    echo ""
+    defaults_found=true
+fi
+
+if [[ "$defaults_found" == "false" ]]; then
+    echo "  (none found)"
+    echo "  To customize defaults, copy config/defaults.sh.example to config/defaults.sh"
     echo ""
 fi
 
