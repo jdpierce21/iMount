@@ -17,7 +17,6 @@ ensure_stdin
 # === Main cleanup ===
 main() {
     # Start cleanup process
-    
     if ! prompt_yn "This will remove all configurations. Continue?" "Y"; then
         message "Cleanup cancelled"
         exit 0
@@ -74,7 +73,6 @@ main() {
         
         # Offer reinstall
         if prompt_yn "Reinstall NAS mounts?" "Y"; then
-            echo ""  # Blank line before new installation starts
             curl -fsSL "$(get_install_url)" | bash
         fi
     else
