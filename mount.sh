@@ -37,22 +37,29 @@ cmd_mount() {
         progress "Mounting $share"
         # Execute directly based on platform to avoid eval quote issues
         if is_macos; then
-            if mount_smbfs -N -o nobrowse "//${NAS_USER}:${NAS_PASS}@${NAS_HOST}/${share}" "${mount_point}" >/dev/null 2>&1; then
+            # Capture mount output for logging
+            mount_output=$(mount_smbfs -N -o nobrowse "//${NAS_USER}:${NAS_PASS}@${NAS_HOST}/${share}" "${mount_point}" 2>&1)
+            mount_result=$?
+            
+            if [[ $mount_result -eq 0 ]]; then
                 progress_done
                 log_info "Mounted $share"
             else
                 progress_fail
-                log_error "Failed to mount $share"
+                log_error "Failed to mount $share: $mount_output"
                 ((failed++))
             fi
         else
             # Linux mount command
-            if sudo mount -t cifs "//${NAS_HOST}/${share}" "${mount_point}" -o "username=${NAS_USER},password=${NAS_PASS},uid=$(id -u),gid=$(id -g),iocharset=utf8,file_mode=0777,dir_mode=0777" >/dev/null 2>&1; then
+            mount_output=$(sudo mount -t cifs "//${NAS_HOST}/${share}" "${mount_point}" -o "username=${NAS_USER},password=${NAS_PASS},uid=$(id -u),gid=$(id -g),iocharset=utf8,file_mode=0777,dir_mode=0777" 2>&1)
+            mount_result=$?
+            
+            if [[ $mount_result -eq 0 ]]; then
                 progress_done
                 log_info "Mounted $share"
             else
                 progress_fail
-                log_error "Failed to mount $share"
+                log_error "Failed to mount $share: $mount_output"
                 ((failed++))
             fi
         fi

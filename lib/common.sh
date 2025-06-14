@@ -155,6 +155,9 @@ log() {
     log_file=$(get_log_file)
     ensure_dir "$(dirname "$log_file")"
     
+    # Ensure log file exists
+    touch "$log_file"
+    
     timestamp=$(date '+%Y-%m-%d %H:%M:%S')
     echo "[$timestamp] [$level] $message" >> "$log_file"
 }

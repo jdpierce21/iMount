@@ -212,6 +212,47 @@ if [[ -n "${SHARES:-}" ]] && [[ -n "${NAS_HOST:-}" ]] && [[ -n "${NAS_USER:-}" ]
     echo ""
     echo "  Try this command manually (contains password):"
     echo "    $(get_mount_command "$share" "$mount_point")"
+    
+    # Test actual mount with error capture
+    echo ""
+    echo "=== Live Mount Test ==="
+    if is_mounted "$mount_point"; then
+        echo "Share is already mounted. Testing access..."
+        echo "Directory contents:"
+        ls -la "$mount_point" 2>&1 | head -10
+        echo ""
+        echo "Attempting to create test file..."
+        test_file="$mount_point/.nas_mount_test_$$"
+        if touch "$test_file" 2>&1; then
+            echo "✓ Write test successful"
+            rm -f "$test_file"
+        else
+            echo "✗ Write test failed"
+        fi
+    else
+        echo "Attempting to mount share with full error output..."
+        echo "Command: mount_smbfs -N -o nobrowse \"//${NAS_USER}:****@${NAS_HOST}/${share}\" \"${mount_point}\""
+        
+        # Try mounting with error capture
+        mount_output=$(mount_smbfs -N -o nobrowse "//${NAS_USER}:${NAS_PASS}@${NAS_HOST}/${share}" "${mount_point}" 2>&1)
+        mount_result=$?
+        
+        if [[ $mount_result -eq 0 ]]; then
+            echo "✓ Mount command returned success"
+        else
+            echo "✗ Mount command failed with exit code: $mount_result"
+            echo "Error output: $mount_output"
+        fi
+        
+        # Check if actually mounted
+        if is_mounted "$mount_point"; then
+            echo "✓ Share is now mounted"
+            echo "Directory contents:"
+            ls -la "$mount_point" 2>&1 | head -10
+        else
+            echo "✗ Share is NOT mounted despite command"
+        fi
+    fi
 fi
 
 echo ""
