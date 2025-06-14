@@ -1,9 +1,6 @@
 #!/bin/bash
 # Entry point for curl installation
 
-# Fix getcwd error if running from a directory that will be deleted
-cd "$HOME" 2>/dev/null || cd / 2>/dev/null || true
-
 set -eo pipefail
 
 # === Constants ===
