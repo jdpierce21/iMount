@@ -39,11 +39,34 @@ get_os_type() {
 }
 
 get_script_dir() {
+    # Try to find the actual script directory dynamically
+    # First check if we have SCRIPT_DIR set (from calling script)
+    if [[ -n "${SCRIPT_DIR:-}" ]]; then
+        echo "$SCRIPT_DIR"
+        return
+    fi
+    
+    # Try to find based on this library file's location
+    local lib_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    if [[ -d "$lib_dir" ]] && [[ "$(basename "$lib_dir")" == "lib" ]]; then
+        echo "$(dirname "$lib_dir")"
+        return
+    fi
+    
+    # Fall back to OS-specific defaults
     local os_type
     os_type=$(get_os_type)
     
     if [[ "$os_type" == "macos" ]]; then
-        echo "$HOME/Scripts/nas_mounts"
+        # Check both possible locations
+        if [[ -d "$HOME/Scripts/nas_mounts" ]]; then
+            echo "$HOME/Scripts/nas_mounts"
+        elif [[ -d "$HOME/scripts/nas_mounts" ]]; then
+            echo "$HOME/scripts/nas_mounts"
+        else
+            # Default to capital S for new installations
+            echo "$HOME/Scripts/nas_mounts"
+        fi
     else
         echo "$HOME/scripts/nas_mounts"
     fi

@@ -25,7 +25,12 @@ if [[ "${BASH_SOURCE[0]}" == "bash" ]] || [[ -z "${BASH_SOURCE[0]:-}" ]]; then
     
     # Determine installation directory (can't use lib functions during bootstrap)
     if [[ "$OSTYPE" == "darwin"* ]]; then
-        INSTALL_DIR="$HOME/Scripts/nas_mounts"
+        # Check if lowercase scripts directory already exists and has nas_mounts
+        if [[ -d "$HOME/scripts/nas_mounts" ]]; then
+            INSTALL_DIR="$HOME/scripts/nas_mounts"
+        else
+            INSTALL_DIR="$HOME/Scripts/nas_mounts"
+        fi
     elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
         INSTALL_DIR="$HOME/scripts/nas_mounts"
     else
