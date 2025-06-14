@@ -145,22 +145,32 @@ cmd_unmount() {
         progress "Unmounting $share"
         # Execute directly based on platform to avoid eval issues
         if is_macos; then
-            # Try normal unmount first
-            unmount_output=$(umount "${mount_point}" 2>&1)
+            # Try normal unmount first with timeout
+            unmount_output=$(timeout 5 umount "${mount_point}" 2>&1)
             unmount_result=$?
             
-            # If busy, try diskutil unmount
-            if [[ $unmount_result -ne 0 ]] && [[ "$unmount_output" == *"busy"* ]]; then
-                log_debug "Mount busy, trying diskutil unmount for $share"
-                unmount_output=$(diskutil unmount "${mount_point}" 2>&1)
+            # If busy or timed out, try diskutil unmount
+            if [[ $unmount_result -ne 0 ]]; then
+                log_debug "First attempt failed, trying diskutil unmount for $share"
+                unmount_output=$(timeout 5 diskutil unmount "${mount_point}" 2>&1)
                 unmount_result=$?
             fi
             
             # If still failing, try force unmount
             if [[ $unmount_result -ne 0 ]]; then
                 log_debug "Trying force unmount for $share"
-                unmount_output=$(diskutil unmount force "${mount_point}" 2>&1)
+                unmount_output=$(timeout 5 diskutil unmount force "${mount_point}" 2>&1)
                 unmount_result=$?
+            fi
+            
+            # Last resort - system umount with force flag
+            if [[ $unmount_result -ne 0 ]]; then
+                log_debug "Last resort: umount -f for $share"
+                umount -f "${mount_point}" 2>/dev/null || true
+                # Check if it's gone
+                if ! mount | grep -q " ${mount_point} "; then
+                    unmount_result=0
+                fi
             fi
             
             if [[ $unmount_result -eq 0 ]]; then
@@ -170,6 +180,7 @@ cmd_unmount() {
             else
                 progress_fail
                 log_error "Failed to unmount $share: $unmount_output"
+                # Continue to next share instead of hanging
             fi
         else
             if sudo umount "${mount_point}" >/dev/null 2>&1; then
