@@ -145,22 +145,32 @@ cmd_unmount() {
         progress "Unmounting $share"
         # Execute directly based on platform to avoid eval issues
         if is_macos; then
-            # Try normal unmount first with timeout
-            unmount_output=$(timeout 5 umount "${mount_point}" 2>&1)
+            # Try normal unmount first
+            unmount_output=$(umount "${mount_point}" 2>&1 & sleep 3; kill $! 2>/dev/null)
             unmount_result=$?
             
-            # If busy or timed out, try diskutil unmount
-            if [[ $unmount_result -ne 0 ]]; then
+            # Check if actually unmounted
+            if mount | grep -q " ${mount_point} "; then
+                # Still mounted, try diskutil
                 log_debug "First attempt failed, trying diskutil unmount for $share"
-                unmount_output=$(timeout 5 diskutil unmount "${mount_point}" 2>&1)
-                unmount_result=$?
+                # Run in background to avoid hanging
+                (diskutil unmount "${mount_point}" >/dev/null 2>&1 &)
+                sleep 2
+                
+                # Check again
+                if mount | grep -q " ${mount_point} "; then
+                    # Still mounted, force it
+                    log_debug "Trying force unmount for $share"
+                    umount -f "${mount_point}" 2>/dev/null || true
+                    sleep 1
+                fi
             fi
             
-            # If still failing, try force unmount
-            if [[ $unmount_result -ne 0 ]]; then
-                log_debug "Trying force unmount for $share"
-                unmount_output=$(timeout 5 diskutil unmount force "${mount_point}" 2>&1)
-                unmount_result=$?
+            # Final check
+            if ! mount | grep -q " ${mount_point} "; then
+                unmount_result=0
+            else
+                unmount_result=1
             fi
             
             # Last resort - system umount with force flag
