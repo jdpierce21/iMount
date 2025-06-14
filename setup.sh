@@ -12,9 +12,7 @@ source lib/common.sh
 source lib/platform.sh
 
 # === Ensure stdin is connected ===
-if [[ ! -t 0 ]] && [[ -e /dev/tty ]]; then
-    exec < /dev/tty
-fi
+ensure_stdin
 
 # === Main setup ===
 main() {
@@ -30,15 +28,14 @@ main() {
     fi
     
     # Get NAS host
-    NAS_HOST=$(prompt "Remote host" "192.168.54.249")
+    NAS_HOST=$(prompt "Remote host" "$DEFAULT_NAS_HOST")
     
     # Get shares
-    local default_shares="backups documents media notes PacificRim photos timemachine_mbp14"
     local input_shares
-    input_shares=$(prompt "Remote shares" "$default_shares")
+    input_shares=$(prompt "Remote shares" "$DEFAULT_SHARES")
     
     # Parse shares into array
-    IFS=' ' read -ra SHARES <<< "${input_shares:-$default_shares}"
+    IFS=' ' read -ra SHARES <<< "${input_shares:-$DEFAULT_SHARES}"
     
     # Validate share names
     for share in "${SHARES[@]}"; do
@@ -121,9 +118,10 @@ main() {
     message "Commands: nas-mount, nas-unmount, nas-status"
     
     if [[ "$ADD_ALIASES" == "yes" ]]; then
-        local shell_name
-        [[ -f "$HOME/.zshrc" ]] && shell_name="zsh" || shell_name="bash"
-        message "Run 'source ~/.$shell_name""rc' to activate aliases"
+        local shell_rc
+        if shell_rc=$(get_shell_rc); then
+            message "Run 'source $shell_rc' to activate aliases"
+        fi
     fi
 }
 

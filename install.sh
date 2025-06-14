@@ -1,7 +1,7 @@
 #!/bin/bash
 # Entry point for curl installation
 
-set -euo pipefail
+set -eo pipefail
 
 # === Constants ===
 readonly INSTALL_SCRIPT_VERSION="2.0.0"
@@ -20,7 +20,7 @@ if [[ "${BASH_SOURCE[0]}" == "bash" ]] || [[ -z "${BASH_SOURCE[0]:-}" ]]; then
     
     echo "=== Installation ==="
     
-    # Determine installation directory
+    # Determine installation directory (can't use lib functions during bootstrap)
     if [[ "$OSTYPE" == "darwin"* ]]; then
         INSTALL_DIR="$HOME/Scripts/nas_mounts"
     elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
@@ -28,6 +28,9 @@ if [[ "${BASH_SOURCE[0]}" == "bash" ]] || [[ -z "${BASH_SOURCE[0]:-}" ]]; then
     else
         die "Unsupported OS: $OSTYPE"
     fi
+    
+    # GitHub constants (can't source lib during bootstrap)
+    readonly GITHUB_URL="https://github.com/jdpierce21/nas_mount.git"
     
     # Check for git
     if ! command -v git >/dev/null 2>&1; then
@@ -54,7 +57,7 @@ if [[ "${BASH_SOURCE[0]}" == "bash" ]] || [[ -z "${BASH_SOURCE[0]:-}" ]]; then
         fi
         
         if git clone --quiet --branch master \
-            "https://github.com/jdpierce21/nas_mount.git" "$INSTALL_DIR" >/dev/null 2>&1; then
+            "$GITHUB_URL" "$INSTALL_DIR" >/dev/null 2>&1; then
             progress_done
         else
             progress_fail

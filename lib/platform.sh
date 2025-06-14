@@ -190,14 +190,8 @@ add_shell_aliases() {
     local mount_script="$1"
     local shell_rc
     
-    # Determine shell RC file
-    if [[ -f "$HOME/.zshrc" ]]; then
-        shell_rc="$HOME/.zshrc"
-    elif [[ -f "$HOME/.bashrc" ]]; then
-        shell_rc="$HOME/.bashrc"
-    else
-        return 1
-    fi
+    # Get shell RC file
+    shell_rc=$(get_shell_rc) || return 1
     
     # Check if aliases already exist
     if grep -q "# NAS mount aliases" "$shell_rc"; then
@@ -217,6 +211,7 @@ EOF
 remove_shell_aliases() {
     local shell_rc
     
+    # Try both possible RC files
     for shell_rc in "$HOME/.bashrc" "$HOME/.zshrc"; do
         if [[ -f "$shell_rc" ]] && grep -q "# NAS mount aliases" "$shell_rc"; then
             # Create backup

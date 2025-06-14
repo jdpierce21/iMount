@@ -23,6 +23,10 @@ readonly MOUNT_DIR_PREFIX="nas_"
 readonly LAUNCHAGENT_NAME="com.jpierce.nas-mounts"
 readonly SYSTEMD_SERVICE_NAME="nas-mounts"
 
+# Default values
+readonly DEFAULT_NAS_HOST="192.168.54.249"
+readonly DEFAULT_SHARES="backups documents media notes PacificRim photos timemachine_mbp14"
+
 # === Path Functions ===
 # All paths derived from these functions - no hardcoding
 
@@ -161,4 +165,23 @@ log_info() {
 
 log_error() {
     log "ERROR" "$1"
+}
+
+# === Common Utilities ===
+# Ensure stdin is connected
+ensure_stdin() {
+    if [[ ! -t 0 ]] && [[ -e /dev/tty ]]; then
+        exec < /dev/tty
+    fi
+}
+
+# Get shell RC file
+get_shell_rc() {
+    if [[ -f "$HOME/.zshrc" ]]; then
+        echo "$HOME/.zshrc"
+    elif [[ -f "$HOME/.bashrc" ]]; then
+        echo "$HOME/.bashrc"
+    else
+        return 1
+    fi
 }
