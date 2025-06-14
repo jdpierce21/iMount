@@ -73,10 +73,21 @@ cmd_mount() {
                 if mount | grep -q " ${mount_point} "; then
                     log_debug "Mount verified in mount table"
                     
+                    # Wait a moment for SMB connection to establish
+                    sleep 1
+                    
                     # Check if we can access the mount
                     if ls "$mount_point" >/dev/null 2>&1; then
                         local file_count=$(ls -1 "$mount_point" 2>/dev/null | wc -l | tr -d ' ')
                         log_info "Mount accessible: $share has $file_count items"
+                        
+                        # If no files visible, retry once more
+                        if [[ $file_count -eq 0 ]]; then
+                            log_debug "No files visible, waiting and retrying..."
+                            sleep 2
+                            file_count=$(ls -1 "$mount_point" 2>/dev/null | wc -l | tr -d ' ')
+                            log_info "After retry: $share has $file_count items"
+                        fi
                     else
                         log_error "Mount exists but cannot list contents of $share"
                     fi
