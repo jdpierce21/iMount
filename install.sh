@@ -20,6 +20,9 @@ if [[ "${BASH_SOURCE[0]}" == "bash" ]] || [[ -z "${BASH_SOURCE[0]:-}" ]]; then
     
     # Start installation process
     
+    # Ensure we're in a valid directory (in case user is in deleted directory)
+    cd "$HOME" || die "Cannot change to home directory"
+    
     # Determine installation directory (can't use lib functions during bootstrap)
     if [[ "$OSTYPE" == "darwin"* ]]; then
         INSTALL_DIR="$HOME/Scripts/nas_mounts"
