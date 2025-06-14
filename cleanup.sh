@@ -25,7 +25,7 @@ main() {
     # Unmount shares
     if [[ -f "$(get_config_file)" ]]; then
         progress "Unmounting shares"
-        if bash mount.sh unmount >/dev/null 2>&1; then
+        if bash mount.sh unmount </dev/null >/dev/null 2>&1; then
             progress_done
         else
             progress_fail
