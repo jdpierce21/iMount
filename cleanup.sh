@@ -16,6 +16,9 @@ ensure_stdin
 
 # === Main cleanup ===
 main() {
+    # Move to safe directory first (in case we're in the script directory)
+    cd "$HOME" || true
+    
     # Start cleanup process
     if ! prompt_yn "This will remove all configurations. Continue?" "Y"; then
         message "Cleanup cancelled"
@@ -63,8 +66,6 @@ main() {
     fi
     # Handle script directory
     if prompt_yn "Remove script directory?" "Y"; then
-        # Move to safe location before removing
-        cd "$HOME"
         rm -rf "$SCRIPT_DIR"
         
         success "Cleanup complete"
