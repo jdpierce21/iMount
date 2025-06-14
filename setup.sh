@@ -246,7 +246,7 @@ EOF
         # No custom values, remove temp file
         rm -f "$temp_file"
         progress_done
-        message "All values match defaults - no preferences file created"
+        log_info "All values match defaults - no preferences file created"
     fi
 }
 
