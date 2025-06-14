@@ -18,7 +18,7 @@ if [[ "${BASH_SOURCE[0]}" == "bash" ]] || [[ -z "${BASH_SOURCE[0]:-}" ]]; then
     error() { echo "✗ Error: $1" >&2; [[ -n "${2:-}" ]] && echo "  $2" >&2; }
     die() { error "$@"; exit 1; }
     
-    echo "=== Installation ==="
+    # Start installation process
     
     # Determine installation directory (can't use lib functions during bootstrap)
     if [[ "$OSTYPE" == "darwin"* ]]; then

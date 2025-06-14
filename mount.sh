@@ -96,7 +96,7 @@ cmd_status() {
     local mounted=0
     local total=0
     
-    print_section "Mount Status"
+    # Show mount status
     
     for share in "${SHARES[@]}"; do
         mount_point="${MOUNT_ROOT}/${MOUNT_DIR_PREFIX}${share}"
@@ -118,7 +118,7 @@ cmd_validate() {
     load_config
     load_credentials
     
-    print_section "Validation"
+    # Start validation
     
     # Check connectivity
     progress "Checking NAS connectivity"

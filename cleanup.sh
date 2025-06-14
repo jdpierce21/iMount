@@ -16,7 +16,7 @@ ensure_stdin
 
 # === Main cleanup ===
 main() {
-    print_section "Cleanup"
+    # Start cleanup process
     
     if ! prompt_yn "This will remove all configurations. Continue?" "Y"; then
         message "Cleanup cancelled"

@@ -11,7 +11,8 @@ readonly SYMBOL_FAILURE="✗"
 
 # === Section Headers ===
 print_section() {
-    echo "=== $1 ==="
+    # Removed per requirements - no section headers
+    return 0
 }
 
 # === Prompts ===

@@ -16,7 +16,7 @@ ensure_stdin
 
 # === Main setup ===
 main() {
-    print_section "Configuration"
+    # Start configuration
     
     # Check dependencies
     progress "Checking dependencies"
