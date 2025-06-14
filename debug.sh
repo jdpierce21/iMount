@@ -1,8 +1,20 @@
 #!/bin/bash
 # Debug script for NAS Mount Manager
 
-# Save all output to file as well
-REPORT_FILE="$HOME/nas_debug_$(date +%Y%m%d_%H%M%S).log"
+# Get script directory first
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
+
+# Load libraries to get log directory
+source lib/common.sh
+source lib/platform.sh
+
+# Now set up logging using the proper log directory
+LOG_DIR="$(get_log_dir)"
+ensure_dir "$LOG_DIR"
+
+# Save all output to file in log directory
+REPORT_FILE="$LOG_DIR/debug_$(date +%Y%m%d_%H%M%S).log"
 exec > >(tee -a "$REPORT_FILE")
 exec 2>&1
 
@@ -11,16 +23,8 @@ echo "Generated: $(date)"
 echo "Report saved to: $REPORT_FILE"
 echo ""
 
-# Get script directory
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-cd "$SCRIPT_DIR"
-
-# Load libraries
-source lib/common.sh
-source lib/platform.sh
-
-# Enhanced debug mode
-set -x 2>$HOME/debug_trace.log
+# Enhanced debug mode - also to log directory
+set -x 2>"$LOG_DIR/debug_trace.log"
 
 echo "=== System Information ==="
 echo "OS: $(uname -s)"
@@ -398,7 +402,7 @@ if [[ -n "${SHARES:-}" ]] && [[ -n "${NAS_HOST:-}" ]] && [[ -n "${NAS_USER:-}" ]
         # Try mount
         echo "    Command: mount_smbfs ${mount_opts} \"//${NAS_USER}:****@${NAS_HOST}/${share}\" \"${mount_point}\""
         
-        if mount_smbfs ${mount_opts} "//${NAS_USER}:${NAS_PASS}@${NAS_HOST}/${share}" "${mount_point}" 2>$HOME/mount_err_${vers:-default}.log; then
+        if mount_smbfs ${mount_opts} "//${NAS_USER}:${NAS_PASS}@${NAS_HOST}/${share}" "${mount_point}" 2>"$LOG_DIR/mount_err_${vers:-default}.log"; then
             echo "    ✓ Mount succeeded"
             
             # Check if accessible
@@ -416,7 +420,7 @@ if [[ -n "${SHARES:-}" ]] && [[ -n "${NAS_HOST:-}" ]] && [[ -n "${NAS_USER:-}" ]
             umount "$mount_point" 2>/dev/null || true
         else
             echo "    ✗ Mount failed"
-            echo "    Error: $(cat $HOME/mount_err_${vers:-default}.log)"
+            echo "    Error: $(cat "$LOG_DIR/mount_err_${vers:-default}.log")"
         fi
         echo ""
     done
@@ -523,10 +527,17 @@ fi
 
 echo ""
 echo "=== Debug Trace Log ==="
-if [[ -f $HOME/debug_trace.log ]]; then
+if [[ -f "$LOG_DIR/debug_trace.log" ]]; then
     echo "Script execution trace (last 50 lines):"
-    tail -50 $HOME/debug_trace.log | sed 's/^/  /'
+    tail -50 "$LOG_DIR/debug_trace.log" | sed 's/^/  /'
 fi
 
 echo ""
 echo "=== End Debug Report ==="
+
+# Clean up old debug logs (keep last 10)
+echo ""
+echo "Cleaning up old debug logs..."
+cd "$LOG_DIR"
+ls -t debug_*.log 2>/dev/null | tail -n +11 | xargs rm -f 2>/dev/null
+ls -t mount_err_*.log 2>/dev/null | tail -n +11 | xargs rm -f 2>/dev/null
