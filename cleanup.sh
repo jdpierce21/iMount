@@ -58,8 +58,8 @@ main() {
     if [[ -f "$(get_config_file)" ]]; then
         load_config
         if [[ -d "$MOUNT_ROOT" ]]; then
-            # Remove empty mount directories
-            find "$MOUNT_ROOT" -type d -name "${MOUNT_DIR_PREFIX}*" -empty -delete 2>/dev/null || true
+            # Remove ALL mount directories (not just empty ones)
+            rm -rf "$MOUNT_ROOT"/${MOUNT_DIR_PREFIX}* 2>/dev/null || true
             # Try to remove mount root if empty
             rmdir "$MOUNT_ROOT" 2>/dev/null || true
         fi
