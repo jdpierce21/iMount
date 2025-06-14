@@ -120,11 +120,11 @@ main() {
     # Check if already installed
     if check_existing; then
         message "Existing installation detected"
-        exec bash ./cleanup.sh
+        exec bash ./cleanup.sh < /dev/tty
     fi
     
     # Fresh installation
-    exec bash ./setup.sh
+    exec bash ./setup.sh < /dev/tty
 }
 
 main "$@"

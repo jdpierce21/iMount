@@ -11,9 +11,6 @@ cd "$SCRIPT_DIR"
 source lib/common.sh
 source lib/platform.sh
 
-# === Ensure stdin is connected ===
-ensure_stdin
-
 # === Main cleanup ===
 main() {
     # Move to safe directory first (in case we're in the script directory)
