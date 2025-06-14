@@ -49,14 +49,9 @@ main() {
     local cred_file
     cred_file=$(get_credentials_file)
     if [[ -f "$cred_file" ]]; then
-        # Skip prompt if running from curl/pipe
-        if [[ ! -t 0 ]]; then
-            message "Keeping credentials (non-interactive mode)"
-        else
-            if prompt_yn "Delete saved credentials?" "N"; then
-                rm -f "$cred_file"
-                log_info "Removed credentials"
-            fi
+        if prompt_yn "Delete saved credentials?" "N"; then
+            rm -f "$cred_file"
+            log_info "Removed credentials"
         fi
     fi
     # Handle mount directories
@@ -70,12 +65,7 @@ main() {
         fi
     fi
     # Handle script directory
-    # Skip prompt if running from curl/pipe and default to Yes
-    if [[ ! -t 0 ]]; then
-        message "Removing script directory (non-interactive mode)"
-        rm -rf "$SCRIPT_DIR"
-        success "Cleanup complete"
-    elif prompt_yn "Remove script directory?" "Y"; then
+    if prompt_yn "Remove script directory?" "Y"; then
         rm -rf "$SCRIPT_DIR"
         
         success "Cleanup complete"

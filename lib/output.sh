@@ -45,7 +45,13 @@ prompt_yn() {
         display="y/N"
     fi
     
-    read -p "$question [$display] " -n 1 -r reply
+    # Ensure we have proper stdin for read command
+    if [[ -t 0 ]]; then
+        read -p "$question [$display] " -n 1 -r reply
+    else
+        # Try to get stdin from /dev/tty
+        read -p "$question [$display] " -n 1 -r reply < /dev/tty
+    fi
     
     # Only add newline if user didn't press enter
     if [[ -n "$reply" ]]; then
