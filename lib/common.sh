@@ -182,6 +182,11 @@ log_debug() {
     log "DEBUG" "$1"
 }
 
+# Simplified - just use log_info for everything
+log_msg() {
+    log "LOG" "$1"
+}
+
 # === Common Utilities ===
 # Ensure stdin is connected
 ensure_stdin() {
