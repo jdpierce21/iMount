@@ -51,8 +51,10 @@ main() {
             log_info "Removed credentials"
         fi
     fi
-    # Handle mount directories
+    # Handle mount directories  
+    echo "DEBUG: Checking mount directories..." >&2
     if [[ -f "$(get_config_file)" ]]; then
+        echo "DEBUG: Config exists, loading..." >&2
         load_config
         if [[ -d "$MOUNT_ROOT" ]]; then
             # Remove ALL mount directories (not just empty ones)
@@ -62,6 +64,7 @@ main() {
         fi
     fi
     # Handle script directory
+    echo "DEBUG: About to prompt for script directory..." >&2
     if prompt_yn "Remove script directory?" "Y"; then
         rm -rf "$SCRIPT_DIR"
         
