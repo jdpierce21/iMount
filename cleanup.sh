@@ -74,7 +74,8 @@ main() {
         
         # Offer reinstall
         if prompt_yn "Reinstall NAS mounts?" "Y"; then
-            message "Run: curl -fsSL $(get_install_url) | bash"
+            echo ""  # Blank line before new installation starts
+            curl -fsSL "$(get_install_url)" | bash
         fi
     else
         # Just remove config
