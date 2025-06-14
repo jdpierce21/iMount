@@ -49,6 +49,8 @@ main() {
     local cred_file
     cred_file=$(get_credentials_file)
     if [[ -f "$cred_file" ]]; then
+        # Ensure stdin is available for prompt
+        ensure_stdin
         if prompt_yn "Delete saved credentials?" "N"; then
             rm -f "$cred_file"
             log_info "Removed credentials"
@@ -65,6 +67,7 @@ main() {
         fi
     fi
     # Handle script directory
+    ensure_stdin
     if prompt_yn "Remove script directory?" "Y"; then
         rm -rf "$SCRIPT_DIR"
         
