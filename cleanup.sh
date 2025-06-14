@@ -7,6 +7,11 @@ set -uo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
+# Ensure we have proper terminal input
+if [[ ! -t 0 ]] && [[ -e /dev/tty ]]; then
+    exec < /dev/tty
+fi
+
 # Load libraries
 source lib/common.sh
 source lib/platform.sh
