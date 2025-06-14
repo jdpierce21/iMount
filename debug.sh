@@ -1,8 +1,14 @@
 #!/bin/bash
 # Debug script for NAS Mount Manager
 
+# Save all output to file as well
+REPORT_FILE="/tmp/nas_debug_$(date +%Y%m%d_%H%M%S).log"
+exec > >(tee -a "$REPORT_FILE")
+exec 2>&1
+
 echo "=== NAS Mount Manager Debug Report ==="
 echo "Generated: $(date)"
+echo "Report saved to: $REPORT_FILE"
 echo ""
 
 # Get script directory
@@ -12,6 +18,9 @@ cd "$SCRIPT_DIR"
 # Load libraries
 source lib/common.sh
 source lib/platform.sh
+
+# Enhanced debug mode
+set -x 2>/tmp/debug_trace.log
 
 echo "=== System Information ==="
 echo "OS: $(uname -s)"
@@ -159,8 +168,48 @@ if [[ -n "${NAS_HOST:-}" ]]; then
     else
         echo "  ✗ Host is NOT reachable"
     fi
+    
+    # Enhanced network diagnostics
+    echo ""
+    echo "Network diagnostics:"
+    echo "  Route to NAS:"
+    route get "$NAS_HOST" 2>&1 | grep -E "(interface:|gateway:|destination:)" | sed 's/^/    /'
+    
+    echo ""
+    echo "  DNS resolution:"
+    host "$NAS_HOST" 2>&1 | head -3 | sed 's/^/    /'
+    
+    echo ""
+    echo "  ARP entry:"
+    arp -n "$NAS_HOST" 2>&1 | sed 's/^/    /'
 else
     echo "✗ NAS_HOST not configured"
+fi
+echo ""
+
+echo "=== SMB/CIFS Diagnostics ==="
+if [[ -n "${NAS_HOST:-}" ]]; then
+    echo "SMB connection test:"
+    
+    # Test SMB connectivity
+    echo "  Testing SMB port 445:"
+    nc -zv -w2 "$NAS_HOST" 445 2>&1 | sed 's/^/    /'
+    
+    echo ""
+    echo "  SMB shares visible (without auth):"
+    smbutil view -N "//${NAS_HOST}" 2>&1 | head -20 | sed 's/^/    /'
+    
+    if [[ -n "${NAS_USER:-}" ]]; then
+        echo ""
+        echo "  SMB shares visible (with auth):"
+        echo "  Command: smbutil view //${NAS_USER}@${NAS_HOST}"
+        # Note: This will prompt for password
+        echo "  (Skipping to avoid password prompt)"
+    fi
+    
+    echo ""
+    echo "  Current SMB mounts statistics:"
+    smbutil statshares -a 2>&1 | sed 's/^/    /'
 fi
 echo ""
 
@@ -190,6 +239,17 @@ else
     # Linux with bash
     history | grep -i nas | tail -20 | sed 's/^/  /'
 fi
+echo ""
+
+echo "=== macOS System Logs ==="
+echo "Checking system logs for mount-related errors:"
+echo "  Last 2 minutes of kernel/mount logs:"
+log show --last 2m --predicate 'process == "kernel" OR process == "KernelEventAgent" OR process == "mount_smbfs" OR process == "NetAuthSysAgent"' 2>&1 | grep -v "DBG" | tail -20 | sed 's/^/    /'
+echo ""
+
+echo "=== Mount Process Diagnostics ==="
+echo "Active mount processes:"
+ps aux | grep -E "(mount|smb)" | grep -v grep | sed 's/^/  /'
 echo ""
 
 echo "=== Debug Mount Attempt ==="
@@ -310,19 +370,150 @@ if [[ -n "${SHARES:-}" ]] && [[ -n "${NAS_HOST:-}" ]] && [[ -n "${NAS_USER:-}" ]
     echo "  Unmounting $share..."
     umount "$mount_point" 2>/dev/null || true
     
-    # Now mount manually
-    echo "  Manually mounting $share..."
-    echo "  Command: mount_smbfs -N -o nobrowse \"//${NAS_USER}:${NAS_PASS}@${NAS_HOST}/${share}\" \"${mount_point}\""
-    mount_smbfs -N -o nobrowse "//${NAS_USER}:${NAS_PASS}@${NAS_HOST}/${share}" "${mount_point}"
+    # Test different SMB versions
+    echo ""
+    echo "TEST 6: SMB Protocol Version Tests..."
+    for vers in "1.0" "2.0" "3.0" ""; do
+        echo "  Testing SMB version: ${vers:-default}"
+        
+        # Build mount options
+        if [[ -n "$vers" ]]; then
+            mount_opts="-N -o nobrowse,vers=${vers}"
+        else
+            mount_opts="-N -o nobrowse"
+        fi
+        
+        # Try mount
+        echo "    Command: mount_smbfs ${mount_opts} \"//${NAS_USER}:****@${NAS_HOST}/${share}\" \"${mount_point}\""
+        
+        if mount_smbfs ${mount_opts} "//${NAS_USER}:${NAS_PASS}@${NAS_HOST}/${share}" "${mount_point}" 2>/tmp/mount_err_${vers:-default}.log; then
+            echo "    ✓ Mount succeeded"
+            
+            # Check if accessible
+            if ls "$mount_point" >/dev/null 2>&1; then
+                file_count=$(ls -1 "$mount_point" 2>/dev/null | wc -l | tr -d ' ')
+                echo "    ✓ Mount accessible with $file_count items"
+            else
+                echo "    ✗ Mount succeeded but not accessible"
+            fi
+            
+            # Show mount info
+            mount | grep "$mount_point" | sed 's/^/      /'
+            
+            # Unmount
+            umount "$mount_point" 2>/dev/null || true
+        else
+            echo "    ✗ Mount failed"
+            echo "    Error: $(cat /tmp/mount_err_${vers:-default}.log)"
+        fi
+        echo ""
+    done
     
-    echo "  Checking contents:"
-    ls -la "$mount_point" | head -10
+    # Test with delay after mount
+    echo "TEST 7: Mount with access delay test..."
+    echo "  Mounting and waiting before access..."
     
-    # Unmount again
-    echo "  Cleaning up..."
-    umount "$mount_point" 2>/dev/null || true
+    if mount_smbfs -N -o nobrowse "//${NAS_USER}:${NAS_PASS}@${NAS_HOST}/${share}" "${mount_point}" 2>&1; then
+        echo "  Mount command completed"
+        
+        # Check mount table immediately
+        echo "  Mount table check:"
+        mount | grep "$mount_point" | sed 's/^/    /'
+        
+        # Try accessing with delays
+        for delay in 0 0.5 1 2; do
+            echo "  After ${delay}s delay:"
+            sleep "$delay"
+            
+            if ls "$mount_point" >/dev/null 2>&1; then
+                file_count=$(ls -1 "$mount_point" 2>/dev/null | wc -l | tr -d ' ')
+                echo "    ✓ Accessible with $file_count items"
+                break
+            else
+                echo "    ✗ Not accessible yet"
+            fi
+        done
+        
+        # Cleanup
+        umount "$mount_point" 2>/dev/null || true
+    fi
 else
     echo "Cannot run automated tests - configuration not loaded"
+fi
+
+echo ""
+echo "=== Stale Mount Detection ==="
+echo "Checking for potentially stale mounts..."
+for share in "${SHARES[@]}"; do
+    mount_point="${MOUNT_ROOT}/${MOUNT_DIR_PREFIX}${share}"
+    
+    if mount | grep -q " ${mount_point} "; then
+        echo "  $share is in mount table"
+        
+        # Test 1: Can we stat the mount point?
+        if stat "$mount_point" >/dev/null 2>&1; then
+            echo "    ✓ stat succeeds"
+        else
+            echo "    ✗ stat fails - likely stale"
+        fi
+        
+        # Test 2: Can we ls the mount?
+        if timeout 2 ls "$mount_point" >/dev/null 2>&1; then
+            echo "    ✓ ls succeeds"
+        else
+            echo "    ✗ ls fails/hangs - likely stale"
+        fi
+        
+        # Test 3: Check df status
+        if df "$mount_point" >/dev/null 2>&1; then
+            echo "    ✓ df succeeds"
+        else
+            echo "    ✗ df fails - likely stale"
+        fi
+    fi
+done
+
+echo ""
+echo "=== Mount Command Variations ==="
+if [[ -n "${SHARES:-}" ]] && [[ -n "${NAS_HOST:-}" ]] && [[ -n "${NAS_USER:-}" ]] && [[ -n "${NAS_PASS:-}" ]]; then
+    share="${SHARES[0]}"
+    mount_point="${MOUNT_ROOT}/${MOUNT_DIR_PREFIX}${share}"
+    
+    # Ensure unmounted
+    umount "$mount_point" 2>/dev/null || true
+    
+    echo "Testing different mount command formats:"
+    
+    # Test 1: With explicit port
+    echo "  1. With explicit port 445:"
+    echo "    Command: mount_smbfs -N -o nobrowse,port=445 \"//${NAS_USER}:****@${NAS_HOST}/${share}\" \"${mount_point}\""
+    if mount_smbfs -N -o nobrowse,port=445 "//${NAS_USER}:${NAS_PASS}@${NAS_HOST}/${share}" "${mount_point}" 2>&1; then
+        echo "    ✓ Mount succeeded"
+        file_count=$(ls -1 "$mount_point" 2>/dev/null | wc -l | tr -d ' ')
+        echo "    Files visible: $file_count"
+        umount "$mount_point" 2>/dev/null || true
+    else
+        echo "    ✗ Mount failed"
+    fi
+    
+    # Test 2: With soft option
+    echo "  2. With soft mount option:"
+    echo "    Command: mount_smbfs -N -o nobrowse,soft \"//${NAS_USER}:****@${NAS_HOST}/${share}\" \"${mount_point}\""
+    if mount_smbfs -N -o nobrowse,soft "//${NAS_USER}:${NAS_PASS}@${NAS_HOST}/${share}" "${mount_point}" 2>&1; then
+        echo "    ✓ Mount succeeded"
+        file_count=$(ls -1 "$mount_point" 2>/dev/null | wc -l | tr -d ' ')
+        echo "    Files visible: $file_count"
+        umount "$mount_point" 2>/dev/null || true
+    else
+        echo "    ✗ Mount failed"
+    fi
+fi
+
+echo ""
+echo "=== Debug Trace Log ==="
+if [[ -f /tmp/debug_trace.log ]]; then
+    echo "Script execution trace (last 50 lines):"
+    tail -50 /tmp/debug_trace.log | sed 's/^/  /'
 fi
 
 echo ""
