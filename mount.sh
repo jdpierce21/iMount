@@ -94,13 +94,16 @@ cmd_unmount() {
         progress "Unmounting $share"
         # Execute directly based on platform to avoid eval issues
         if is_macos; then
-            if umount "${mount_point}" >/dev/null 2>&1; then
+            unmount_output=$(umount "${mount_point}" 2>&1)
+            unmount_result=$?
+            
+            if [[ $unmount_result -eq 0 ]]; then
                 progress_done
                 log_info "Unmounted $share"
                 ((unmounted++))
             else
                 progress_fail
-                log_error "Failed to unmount $share"
+                log_error "Failed to unmount $share: $unmount_output"
             fi
         else
             if sudo umount "${mount_point}" >/dev/null 2>&1; then
