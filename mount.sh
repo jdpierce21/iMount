@@ -23,17 +23,22 @@ cmd_mount() {
     
     for share in "${SHARES[@]}"; do
         mount_point="${MOUNT_ROOT}/${MOUNT_DIR_PREFIX}${share}"
+        log_debug "Processing share: $share"
+        log_debug "Mount point: $mount_point"
         
         # Skip if already mounted
         if is_mounted "$mount_point"; then
+            log_info "Share $share already mounted at $mount_point - skipping"
             continue
         fi
         
         # Ensure mount point exists
+        log_debug "Creating mount point directory: $mount_point"
         ensure_dir "$mount_point"
         
         # Get mount command
         mount_cmd=$(get_mount_command "$share" "$mount_point")
+        log_debug "Generated mount command: $mount_cmd"
         
         # Execute mount
         progress "Mounting $share"
@@ -42,23 +47,40 @@ cmd_mount() {
             # Log the exact command for debugging
             log_debug "Mount command: mount_smbfs -N -o nobrowse \"//${NAS_USER}:****@${NAS_HOST}/${share}\" \"${mount_point}\""
             
+            # Log before executing
+            log_debug "Executing mount for $share"
+            log_debug "User: $NAS_USER, Host: $NAS_HOST, Share: $share"
+            log_debug "Mount point exists: $(test -d "$mount_point" && echo "yes" || echo "no")"
+            
             # Capture mount output for logging
             mount_output=$(mount_smbfs -N -o nobrowse "//${NAS_USER}:${NAS_PASS}@${NAS_HOST}/${share}" "${mount_point}" 2>&1)
             mount_result=$?
             
+            log_debug "Mount command returned: $mount_result"
+            log_debug "Mount output: $mount_output"
+            
             if [[ $mount_result -eq 0 ]]; then
                 progress_done
-                log_info "Mounted $share to $mount_point"
+                log_info "Mount command succeeded for $share"
                 
                 # Verify mount actually worked by checking if it's in mount table
                 if mount | grep -q " ${mount_point} "; then
                     log_debug "Mount verified in mount table"
+                    
+                    # Check if we can access the mount
+                    if ls "$mount_point" >/dev/null 2>&1; then
+                        local file_count=$(ls -1 "$mount_point" 2>/dev/null | wc -l | tr -d ' ')
+                        log_info "Mount accessible: $share has $file_count items"
+                    else
+                        log_error "Mount exists but cannot list contents of $share"
+                    fi
                 else
                     log_error "Mount command succeeded but not found in mount table!"
                 fi
             else
                 progress_fail
-                log_error "Failed to mount $share: exit code $mount_result, output: $mount_output"
+                log_error "Failed to mount $share: exit code $mount_result"
+                log_error "Error output: $mount_output"
                 ((failed++))
             fi
         else

@@ -107,8 +107,11 @@ load_config() {
     local config_file
     config_file=$(get_config_file)
     
+    log_debug "Loading config from: $config_file"
     if [[ -f "$config_file" ]]; then
         source "$config_file"
+        log_debug "Config loaded: NAS_HOST=$NAS_HOST, MOUNT_ROOT=$MOUNT_ROOT"
+        log_debug "Number of shares: ${#SHARES[@]}"
     else
         die "Configuration not found" "Run setup first"
     fi
@@ -120,6 +123,10 @@ save_credentials() {
     local password="$2"
     local cred_file
     cred_file=$(get_credentials_file)
+    
+    # Strip any trailing newlines from username and password
+    username="${username%$'\n'}"
+    password="${password%$'\n'}"
     
     echo "${username}%${password}" > "$cred_file"
     chmod 600 "$cred_file"

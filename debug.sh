@@ -256,4 +256,74 @@ if [[ -n "${SHARES:-}" ]] && [[ -n "${NAS_HOST:-}" ]] && [[ -n "${NAS_USER:-}" ]
 fi
 
 echo ""
+echo "=== Automated Test Sequence ==="
+if [[ -n "${SHARES:-}" ]] && [[ -n "${NAS_HOST:-}" ]] && [[ -n "${NAS_USER:-}" ]] && [[ -n "${NAS_PASS:-}" ]]; then
+    echo "Running full automated test..."
+    echo ""
+    
+    # Test 1: Unmount all shares
+    echo "TEST 1: Unmounting all shares..."
+    ./mount.sh unmount
+    echo ""
+    
+    # Test 2: Clear log and mount with full logging
+    echo "TEST 2: Mounting shares with detailed logging..."
+    echo "" > logs/nas_mount.log  # Clear log
+    ./mount.sh mount
+    echo ""
+    
+    # Test 3: Check what got logged
+    echo "TEST 3: Log file analysis:"
+    echo "  Total log lines: $(wc -l < logs/nas_mount.log | tr -d ' ')"
+    echo "  DEBUG entries: $(grep -c DEBUG logs/nas_mount.log || echo 0)"
+    echo "  INFO entries: $(grep -c INFO logs/nas_mount.log || echo 0)"
+    echo "  ERROR entries: $(grep -c ERROR logs/nas_mount.log || echo 0)"
+    echo ""
+    echo "  Full log contents:"
+    echo "  ===================="
+    cat logs/nas_mount.log
+    echo "  ===================="
+    echo ""
+    
+    # Test 4: Verify each mount
+    echo "TEST 4: Verifying each mount point..."
+    for share in "${SHARES[@]}"; do
+        mount_point="${MOUNT_ROOT}/${MOUNT_DIR_PREFIX}${share}"
+        echo -n "  $share: "
+        
+        if mount | grep -q " ${mount_point} "; then
+            echo -n "mounted, "
+            file_count=$(ls -1 "$mount_point" 2>/dev/null | wc -l | tr -d ' ')
+            echo "$file_count files"
+        else
+            echo "NOT MOUNTED"
+        fi
+    done
+    echo ""
+    
+    # Test 5: Manual mount test of first share
+    echo "TEST 5: Manual mount test..."
+    share="${SHARES[0]}"
+    mount_point="${MOUNT_ROOT}/${MOUNT_DIR_PREFIX}${share}"
+    
+    # First unmount it
+    echo "  Unmounting $share..."
+    umount "$mount_point" 2>/dev/null || true
+    
+    # Now mount manually
+    echo "  Manually mounting $share..."
+    echo "  Command: mount_smbfs -N -o nobrowse \"//${NAS_USER}:${NAS_PASS}@${NAS_HOST}/${share}\" \"${mount_point}\""
+    mount_smbfs -N -o nobrowse "//${NAS_USER}:${NAS_PASS}@${NAS_HOST}/${share}" "${mount_point}"
+    
+    echo "  Checking contents:"
+    ls -la "$mount_point" | head -10
+    
+    # Unmount again
+    echo "  Cleaning up..."
+    umount "$mount_point" 2>/dev/null || true
+else
+    echo "Cannot run automated tests - configuration not loaded"
+fi
+
+echo ""
 echo "=== End Debug Report ==="
