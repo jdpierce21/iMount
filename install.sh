@@ -1,6 +1,9 @@
 #!/bin/bash
 # Entry point for curl installation
 
+# Fix getcwd error if running from a directory that will be deleted
+cd "$HOME" 2>/dev/null || cd / 2>/dev/null || true
+
 set -eo pipefail
 
 # === Constants ===
@@ -127,9 +130,6 @@ check_existing() {
 
 # === Main ===
 main() {
-    # Move to safe directory first (in case we're in a directory that will be deleted)
-    cd "$HOME" || cd / || true
-    
     # Check if already installed
     if check_existing; then
         message "Existing installation detected"
