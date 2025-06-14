@@ -168,9 +168,10 @@ StandardError=journal
 WantedBy=default.target
 EOF
     
-    # Enable the service
+    # Enable and start the service
     systemctl --user daemon-reload
     systemctl --user enable "${SYSTEMD_SERVICE_NAME}.service"
+    systemctl --user start "${SYSTEMD_SERVICE_NAME}.service"
 }
 
 remove_systemd_service() {
