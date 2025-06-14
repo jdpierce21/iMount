@@ -3,17 +3,27 @@
 
 set -euo pipefail
 
+# Get script directory
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
+
 # Load configuration
-source config/config.sh
 source lib/common.sh
+source lib/platform.sh
+load_config
 load_credentials
 
 echo "=== Mount Comparison Test ==="
 echo ""
 
-# Test share
-share="backups"
-mount_point="/Users/jpierce/nas_mounts/nas_${share}"
+# Test with first configured share
+if [[ ${#SHARES[@]} -eq 0 ]]; then
+    echo "No shares configured!"
+    exit 1
+fi
+
+share="${SHARES[0]}"
+mount_point="$(get_mount_root)/${MOUNT_DIR_PREFIX}${share}"
 
 echo "Configuration:"
 echo "  NAS_HOST: $NAS_HOST"
@@ -31,9 +41,14 @@ fi
 # Try script method
 echo ""
 echo "2. Testing script mount method:"
-echo "   Command: mount_smbfs -N -o nobrowse \"//${NAS_USER}:${NAS_PASS}@${NAS_HOST}/${share}\" \"${mount_point}\""
+mount_cmd=$(get_mount_command "$share" "$mount_point")
+echo "   Command: ${mount_cmd//$NAS_PASS/****}"
 
-mount_smbfs -N -o nobrowse "//${NAS_USER}:${NAS_PASS}@${NAS_HOST}/${share}" "${mount_point}"
+if is_macos; then
+    mount_smbfs -N -o nobrowse "//${NAS_USER}:${NAS_PASS}@${NAS_HOST}/${share}" "${mount_point}"
+else
+    sudo mount -t cifs "//${NAS_HOST}/${share}" "${mount_point}" -o "username=${NAS_USER},password=${NAS_PASS},uid=$(id -u),gid=$(id -g),iocharset=utf8,file_mode=0777,dir_mode=0777"
+fi
 result=$?
 
 echo "   Exit code: $result"

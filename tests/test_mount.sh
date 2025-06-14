@@ -1,11 +1,19 @@
 #!/bin/bash
-# Test mount script to debug the issue
+# Test mount script for debugging mount issues
 
 set -x  # Enable debug output
 
+# Get script directory
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$SCRIPT_DIR"
+
 # Load the configuration
 source config/config.sh
-source ~/.nas_credentials
+source lib/common.sh
+source lib/platform.sh
+
+# Load credentials properly
+load_credentials
 
 # Test variables
 echo "NAS_HOST: $NAS_HOST"
@@ -26,7 +34,11 @@ fi
 
 # Try mounting with full error output
 echo "Attempting mount..."
-mount_smbfs -N -o nobrowse "//${NAS_USER}:${NAS_PASS}@${NAS_HOST}/${SHARES[0]}" "${MOUNT_POINT}"
+if is_macos; then
+    mount_smbfs -N -o nobrowse "//${NAS_USER}:${NAS_PASS}@${NAS_HOST}/${SHARES[0]}" "${MOUNT_POINT}"
+else
+    sudo mount -t cifs "//${NAS_HOST}/${SHARES[0]}" "${MOUNT_POINT}" -o "username=${NAS_USER},password=${NAS_PASS},uid=$(id -u),gid=$(id -g),iocharset=utf8,file_mode=0777,dir_mode=0777"
+fi
 RESULT=$?
 
 echo "Mount command exit code: $RESULT"
