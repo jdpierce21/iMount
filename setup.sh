@@ -1,0 +1,160 @@
+#!/bin/bash
+# Core setup logic
+
+set -euo pipefail
+
+# Get script directory
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
+
+# Load libraries
+source lib/common.sh
+source lib/platform.sh
+
+# === Ensure stdin is connected ===
+if [[ ! -t 0 ]]; then
+    exec < /dev/tty
+fi
+
+# === Main setup ===
+main() {
+    print_section "Configuration"
+    
+    # Check dependencies
+    progress "Checking dependencies"
+    if check_dependencies; then
+        progress_done
+    else
+        progress_fail
+        exit 1
+    fi
+    
+    # Get NAS host
+    NAS_HOST=$(prompt "Remote host" "192.168.54.249")
+    
+    # Get shares
+    local default_shares="backups documents media notes PacificRim photos timemachine_mbp14"
+    local input_shares
+    input_shares=$(prompt "Remote shares" "$default_shares")
+    
+    # Parse shares into array
+    IFS=' ' read -ra SHARES <<< "${input_shares:-$default_shares}"
+    
+    # Validate share names
+    for share in "${SHARES[@]}"; do
+        validate_share_name "$share"
+    done
+    
+    # Get credentials
+    local cred_file username password
+    cred_file=$(get_credentials_file)
+    
+    if [[ -f "$cred_file" ]]; then
+        message "Using existing credentials"
+        load_credentials
+    else
+        username=$(prompt "Username" "")
+        password=$(prompt_password "Password")
+        
+        [[ -z "$username" ]] && die "Username required"
+        [[ -z "$password" ]] && die "Password required"
+        
+        save_credentials "$username" "$password"
+    fi
+    
+    # Get mount location
+    MOUNT_ROOT=$(prompt "Mount location" "$(get_mount_root)")
+    
+    # Get preferences
+    if prompt_yn "Auto-mount at login?" "Y"; then
+        AUTO_START="yes"
+    else
+        AUTO_START="no"
+    fi
+    
+    if prompt_yn "Create command aliases?" "Y"; then
+        ADD_ALIASES="yes" 
+    else
+        ADD_ALIASES="no"
+    fi
+    
+    # Create config file
+    progress "Writing configuration"
+    create_config
+    progress_done
+    
+    # Make scripts executable
+    chmod +x mount.sh cleanup.sh
+    
+    print_section "Installation"
+    
+    # Create mount directories
+    progress "Creating mount points"
+    ensure_dir "$MOUNT_ROOT"
+    for share in "${SHARES[@]}"; do
+        ensure_dir "${MOUNT_ROOT}/${MOUNT_DIR_PREFIX}${share}"
+    done
+    progress_done
+    
+    # Configure auto-mount
+    if [[ "$AUTO_START" == "yes" ]]; then
+        progress "Configuring auto-mount"
+        if create_auto_mount_service "$SCRIPT_DIR/mount.sh"; then
+            progress_done
+        else
+            progress_fail
+        fi
+    fi
+    
+    # Add aliases
+    if [[ "$ADD_ALIASES" == "yes" ]]; then
+        progress "Creating command aliases"
+        if add_shell_aliases "$SCRIPT_DIR/mount.sh"; then
+            progress_done
+        else
+            progress_fail
+        fi
+    fi
+    
+    # Done
+    success "Installation complete"
+    message "Commands: nas-mount, nas-unmount, nas-status"
+    
+    if [[ "$ADD_ALIASES" == "yes" ]]; then
+        local shell_name
+        [[ -f "$HOME/.zshrc" ]] && shell_name="zsh" || shell_name="bash"
+        message "Run 'source ~/.$shell_name""rc' to activate aliases"
+    fi
+}
+
+# === Create configuration ===
+create_config() {
+    local config_dir config_file
+    config_dir=$(get_config_dir)
+    config_file=$(get_config_file)
+    
+    ensure_dir "$config_dir"
+    
+    cat > "$config_file" <<EOF
+# NAS Mount Configuration
+# Generated: $(date)
+
+# Connection
+NAS_HOST="$NAS_HOST"
+
+# Shares to mount
+SHARES=($(printf '"%s" ' "${SHARES[@]}"))
+
+# Mount location
+MOUNT_ROOT="$MOUNT_ROOT"
+
+# Preferences
+AUTO_START="$AUTO_START"
+ADD_ALIASES="$ADD_ALIASES"
+EOF
+    
+    chmod 600 "$config_file"
+}
+
+# Run main
+main "$@"
