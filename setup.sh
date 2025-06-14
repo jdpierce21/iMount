@@ -68,7 +68,6 @@ main() {
     else
         AUTO_START="no"
     fi
-    
     if prompt_yn "Create command aliases?" "Y"; then
         ADD_ALIASES="yes" 
     else
@@ -83,7 +82,7 @@ main() {
     # Make scripts executable
     chmod +x mount.sh cleanup.sh
     
-    print_section "Installation"
+    # Continue with installation steps
     
     # Create mount directories
     progress "Creating mount points"
