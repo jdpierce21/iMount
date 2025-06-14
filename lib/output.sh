@@ -45,7 +45,7 @@ prompt_yn() {
         display="y/N"
     fi
     
-    read -p "$question [$display] " -n 1 -r reply
+    read -p "$question [$display] " -n 1 -r reply || reply="$default"
     
     # Only add newline if user didn't press enter
     if [[ -n "$reply" ]]; then
