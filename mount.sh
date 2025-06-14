@@ -103,10 +103,10 @@ cmd_status() {
         ((total++))
         
         if is_mounted "$mount_point"; then
-            echo "$SYMBOL_SUCCESS $share → $mount_point"
+            echo "$share → $mount_point $SYMBOL_SUCCESS"
             ((mounted++))
         else
-            echo "$SYMBOL_FAILURE $share → not mounted"
+            echo "$share → not mounted $SYMBOL_FAILURE"
         fi
     done
     

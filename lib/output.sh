@@ -84,7 +84,7 @@ progress_fail() {
 
 # === Status Messages ===
 success() {
-    echo "$SYMBOL_SUCCESS $1"
+    echo "$1 $SYMBOL_SUCCESS"
 }
 
 error() {
