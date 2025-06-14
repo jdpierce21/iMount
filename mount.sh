@@ -145,51 +145,79 @@ cmd_unmount() {
         progress "Unmounting $share"
         # Execute directly based on platform to avoid eval issues
         if is_macos; then
-            # Try normal unmount first
-            unmount_output=$(umount "${mount_point}" 2>&1 & sleep 3; kill $! 2>/dev/null)
-            unmount_result=$?
-            
-            # Check if actually unmounted
-            if mount | grep -q " ${mount_point} "; then
-                # Still mounted, try diskutil
-                log_debug "First attempt failed, trying diskutil unmount for $share"
-                # Run in background to avoid hanging
-                (diskutil unmount "${mount_point}" >/dev/null 2>&1 &)
-                sleep 2
+            # Use a timeout function to prevent hanging
+            unmount_with_timeout() {
+                local mp="$1"
+                local timeout="$2"
+                local cmd="$3"
                 
-                # Check again
-                if mount | grep -q " ${mount_point} "; then
-                    # Still mounted, force it
-                    log_debug "Trying force unmount for $share"
-                    umount -f "${mount_point}" 2>/dev/null || true
-                    sleep 1
-                fi
-            fi
+                # Run command in background
+                eval "$cmd" &
+                local pid=$!
+                
+                # Wait for timeout
+                local count=0
+                while [[ $count -lt $timeout ]]; do
+                    if ! kill -0 $pid 2>/dev/null; then
+                        # Process finished
+                        wait $pid
+                        return $?
+                    fi
+                    sleep 0.1
+                    ((count++))
+                done
+                
+                # Timeout reached, kill the process
+                kill -9 $pid 2>/dev/null || true
+                return 1
+            }
             
-            # Final check
-            if ! mount | grep -q " ${mount_point} "; then
-                unmount_result=0
-            else
-                unmount_result=1
-            fi
+            # Try unmount strategies with timeouts
+            unmounted_this_share=false
             
-            # Last resort - system umount with force flag
-            if [[ $unmount_result -ne 0 ]]; then
-                log_debug "Last resort: umount -f for $share"
-                umount -f "${mount_point}" 2>/dev/null || true
-                # Check if it's gone
+            # Strategy 1: Normal umount (3 second timeout)
+            log_debug "Trying normal umount for $share"
+            if unmount_with_timeout "$mount_point" 30 "umount \"$mount_point\" 2>/dev/null"; then
                 if ! mount | grep -q " ${mount_point} "; then
-                    unmount_result=0
+                    unmounted_this_share=true
                 fi
             fi
             
-            if [[ $unmount_result -eq 0 ]]; then
+            # Strategy 2: diskutil unmount (3 second timeout)
+            if [[ "$unmounted_this_share" == "false" ]]; then
+                log_debug "Trying diskutil unmount for $share"
+                if unmount_with_timeout "$mount_point" 30 "diskutil unmount \"$mount_point\" 2>/dev/null"; then
+                    if ! mount | grep -q " ${mount_point} "; then
+                        unmounted_this_share=true
+                    fi
+                fi
+            fi
+            
+            # Strategy 3: Force unmount (2 second timeout)
+            if [[ "$unmounted_this_share" == "false" ]]; then
+                log_debug "Trying force unmount for $share"
+                unmount_with_timeout "$mount_point" 20 "umount -f \"$mount_point\" 2>/dev/null" || true
+                if ! mount | grep -q " ${mount_point} "; then
+                    unmounted_this_share=true
+                fi
+            fi
+            
+            # Strategy 4: diskutil force (2 second timeout)
+            if [[ "$unmounted_this_share" == "false" ]]; then
+                log_debug "Trying diskutil force for $share"
+                unmount_with_timeout "$mount_point" 20 "diskutil unmount force \"$mount_point\" 2>/dev/null" || true
+                if ! mount | grep -q " ${mount_point} "; then
+                    unmounted_this_share=true
+                fi
+            fi
+            
+            if [[ "$unmounted_this_share" == "true" ]]; then
                 progress_done
                 log_info "Unmounted $share"
                 ((unmounted++))
             else
                 progress_fail
-                log_error "Failed to unmount $share: $unmount_output"
+                log_error "Failed to unmount $share (mount might be busy)"
                 # Continue to next share instead of hanging
             fi
         else
