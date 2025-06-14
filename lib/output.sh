@@ -46,7 +46,11 @@ prompt_yn() {
     fi
     
     read -p "$question [$display] " -n 1 -r reply
-    echo ""  # New line after single character input
+    
+    # Only add newline if user didn't press enter
+    if [[ -n "$reply" ]]; then
+        echo ""  # New line after single character input
+    fi
     
     # Handle default
     if [[ -z "$reply" ]]; then
