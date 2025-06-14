@@ -203,7 +203,7 @@ If you have an existing `~/.nas_mount_defaults` file:
 
 ```bash
 # Run the migration script
-./migrate_defaults.sh
+./utils/migrate_defaults.sh
 ```
 
 This will copy your settings to the new location and optionally remove the old file.
@@ -214,7 +214,7 @@ To see what defaults are currently in use:
 
 ```bash
 # Run the show defaults script
-./show_defaults.sh
+./utils/show_defaults.sh
 ```
 
 This will display:

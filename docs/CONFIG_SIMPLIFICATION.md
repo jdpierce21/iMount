@@ -28,7 +28,7 @@ We've simplified the configuration system from 3 files to a clearer 2-file hiera
 3. **Backward Compatibility**:
    - Still reads `~/.nas_mount_defaults` if it exists
    - New location takes precedence if both exist
-   - Migration script provided (`migrate_defaults.sh`)
+   - Migration script provided (`utils/migrate_defaults.sh`)
 
 ## Migration
 
@@ -36,7 +36,7 @@ For users with existing `~/.nas_mount_defaults`:
 
 ```bash
 # Option 1: Use the migration script
-./migrate_defaults.sh
+./utils/migrate_defaults.sh
 
 # Option 2: Manual migration
 cp ~/.nas_mount_defaults config/defaults.sh
@@ -54,7 +54,7 @@ rm ~/.nas_mount_defaults
 
 - `lib/defaults.sh` - Updated to check both locations
 - `setup.sh` - Now saves to config/defaults.sh
-- `show_defaults.sh` - Shows both locations and precedence
-- `migrate_defaults.sh` - New script for migration
+- `utils/show_defaults.sh` - Shows both locations and precedence
+- `utils/migrate_defaults.sh` - New script for migration
 - `config/defaults.sh.example` - New example file
 - Documentation updated to reflect new structure
