@@ -48,7 +48,17 @@ if [[ "${BASH_SOURCE[0]}" == "bash" ]] || [[ -z "${BASH_SOURCE[0]:-}" ]]; then
             progress_done
         else
             progress_fail
-            die "Failed to update repository"
+            # If update fails, remove and re-clone
+            cd "$HOME"
+            rm -rf "$INSTALL_DIR"
+            progress "Re-downloading repository"
+            if git clone --quiet --branch master \
+                "$GITHUB_URL" "$INSTALL_DIR" >/dev/null 2>&1; then
+                progress_done
+            else
+                progress_fail
+                die "Failed to download repository" "Check internet connection"
+            fi
         fi
     else
         progress "Downloading repository"
