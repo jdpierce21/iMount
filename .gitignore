@@ -1,0 +1,17 @@
+# macOS
+.DS_Store
+._*
+
+# Logs
+logs/
+*.log
+
+# Config
+config/config.sh
+
+# Credentials
+.nas_credentials
+
+# Backups
+*.backup
+*.backup.*
