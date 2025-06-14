@@ -66,6 +66,11 @@ main() {
     fi
     # Handle script directory
     if prompt_yn "Remove script directory?" "Y"; then
+        # Get install URL before deleting files
+        local install_url
+        install_url=$(get_install_url)
+        
+        # Now remove the directory
         rm -rf "$SCRIPT_DIR"
         
         success "Cleanup complete"
@@ -74,7 +79,7 @@ main() {
         if prompt_yn "Reinstall NAS mounts?" "Y"; then
             # Change to parent directory before reinstalling
             cd "$(dirname "$SCRIPT_DIR")"
-            curl -fsSL "$(get_install_url)" | bash
+            curl -fsSL "$install_url" | bash
         fi
     else
         # Just remove config
