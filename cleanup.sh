@@ -28,13 +28,26 @@ main() {
     fi
     
     # Unmount shares
-    if [[ -f "$(get_config_file)" ]]; then
-        progress "Unmounting shares"
-        if bash mount.sh unmount </dev/null >/dev/null 2>&1; then
-            progress_done
-        else
-            progress_fail
-        fi
+    progress "Unmounting shares"
+    # Try graceful unmount first
+    bash mount.sh unmount </dev/null >/dev/null 2>&1 || true
+    
+    # Force unmount any remaining mounts
+    mount_root=$(get_mount_root)
+    if [[ -d "$mount_root" ]]; then
+        # Force unmount all nas_ directories
+        for mount_point in "$mount_root"/${MOUNT_DIR_PREFIX}*; do
+            if [[ -d "$mount_point" ]] && mount | grep -q " $mount_point "; then
+                umount -f "$mount_point" 2>/dev/null || sudo umount -f "$mount_point" 2>/dev/null || true
+            fi
+        done
+    fi
+    
+    # Check if all unmounted
+    if mount | grep -q " $mount_root/${MOUNT_DIR_PREFIX}"; then
+        progress_fail
+    else
+        progress_done
     fi
     
     # Remove auto-mount service
