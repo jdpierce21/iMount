@@ -59,7 +59,7 @@ cmd_mount() {
             log_debug "Mount point exists: $(test -d "$mount_point" && echo "yes" || echo "no")"
             
             # Capture mount output for logging
-            mount_output=$(mount_smbfs -N -o nobrowse "//${NAS_USER}:${NAS_PASS}@${NAS_HOST}/${share}" "${mount_point}" 2>&1)
+            mount_output=$(mount_smbfs ${DEFAULT_MACOS_MOUNT_OPTIONS} "//${NAS_USER}:${NAS_PASS}@${NAS_HOST}/${share}" "${mount_point}" 2>&1)
             mount_result=$?
             
             log_debug "Mount command returned: $mount_result"
@@ -74,7 +74,7 @@ cmd_mount() {
                     log_debug "Mount verified in mount table"
                     
                     # Wait a moment for SMB connection to establish
-                    sleep 1
+                    sleep ${DEFAULT_MOUNT_WAIT}
                     
                     # Check if we can access the mount
                     if ls "$mount_point" >/dev/null 2>&1; then
@@ -84,7 +84,7 @@ cmd_mount() {
                         # If no files visible, retry once more
                         if [[ $file_count -eq 0 ]]; then
                             log_debug "No files visible, waiting and retrying..."
-                            sleep 2
+                            sleep ${DEFAULT_MOUNT_RETRY_WAIT}
                             file_count=$(ls -1 "$mount_point" 2>/dev/null | wc -l | tr -d ' ')
                             log_info "After retry: $share has $file_count items"
                         fi
@@ -102,7 +102,7 @@ cmd_mount() {
             fi
         else
             # Linux mount command
-            mount_output=$(sudo mount -t cifs "//${NAS_HOST}/${share}" "${mount_point}" -o "username=${NAS_USER},password=${NAS_PASS},uid=$(id -u),gid=$(id -g),iocharset=utf8,file_mode=0777,dir_mode=0777" 2>&1)
+            mount_output=$(sudo mount -t cifs "//${NAS_HOST}/${share}" "${mount_point}" -o "username=${NAS_USER},password=${NAS_PASS},uid=$(id -u),gid=$(id -g),${DEFAULT_LINUX_MOUNT_OPTIONS}" 2>&1)
             mount_result=$?
             
             if [[ $mount_result -eq 0 ]]; then
@@ -175,37 +175,37 @@ cmd_unmount() {
             # Try unmount strategies with timeouts
             unmounted_this_share=false
             
-            # Strategy 1: Normal umount (3 second timeout)
+            # Strategy 1: Normal umount
             log_debug "Trying normal umount for $share"
-            if unmount_with_timeout "$mount_point" 30 "umount \"$mount_point\" 2>/dev/null"; then
+            if unmount_with_timeout "$mount_point" ${DEFAULT_UNMOUNT_TIMEOUT} "umount \"$mount_point\" 2>/dev/null"; then
                 if ! mount | grep -q " ${mount_point} "; then
                     unmounted_this_share=true
                 fi
             fi
             
-            # Strategy 2: diskutil unmount (3 second timeout)
+            # Strategy 2: diskutil unmount
             if [[ "$unmounted_this_share" == "false" ]]; then
                 log_debug "Trying diskutil unmount for $share"
-                if unmount_with_timeout "$mount_point" 30 "diskutil unmount \"$mount_point\" 2>/dev/null"; then
+                if unmount_with_timeout "$mount_point" ${DEFAULT_UNMOUNT_TIMEOUT} "diskutil unmount \"$mount_point\" 2>/dev/null"; then
                     if ! mount | grep -q " ${mount_point} "; then
                         unmounted_this_share=true
                     fi
                 fi
             fi
             
-            # Strategy 3: Force unmount (2 second timeout)
+            # Strategy 3: Force unmount
             if [[ "$unmounted_this_share" == "false" ]]; then
                 log_debug "Trying force unmount for $share"
-                unmount_with_timeout "$mount_point" 20 "umount -f \"$mount_point\" 2>/dev/null" || true
+                unmount_with_timeout "$mount_point" ${DEFAULT_FORCE_UNMOUNT_TIMEOUT} "umount -f \"$mount_point\" 2>/dev/null" || true
                 if ! mount | grep -q " ${mount_point} "; then
                     unmounted_this_share=true
                 fi
             fi
             
-            # Strategy 4: diskutil force (2 second timeout)
+            # Strategy 4: diskutil force
             if [[ "$unmounted_this_share" == "false" ]]; then
                 log_debug "Trying diskutil force for $share"
-                unmount_with_timeout "$mount_point" 20 "diskutil unmount force \"$mount_point\" 2>/dev/null" || true
+                unmount_with_timeout "$mount_point" ${DEFAULT_FORCE_UNMOUNT_TIMEOUT} "diskutil unmount force \"$mount_point\" 2>/dev/null" || true
                 if ! mount | grep -q " ${mount_point} "; then
                     unmounted_this_share=true
                 fi
@@ -306,7 +306,7 @@ cmd_validate() {
         fi
         
         # Try to create test file
-        test_file="$mount_point/.nas_mount_test_$$"
+        test_file="$mount_point/${DEFAULT_TEST_FILE_PREFIX}$$"
         if touch "$test_file" 2>/dev/null && rm -f "$test_file" 2>/dev/null; then
             progress_done
         else

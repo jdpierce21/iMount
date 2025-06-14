@@ -1,0 +1,58 @@
+#!/bin/bash
+# Example NAS Mount Manager defaults override file
+# Copy this to ~/.nas_mount_defaults and modify as needed
+
+# === Network Configuration ===
+# Change the default NAS host IP
+#export NAS_MOUNT_DEFAULT_HOST="192.168.1.100"
+
+# Change the default SMB port
+#export NAS_MOUNT_SMB_PORT="445"
+
+# === Directory Structure ===
+# Change the mount directory prefix (default: "nas_")
+#export NAS_MOUNT_DIR_PREFIX="share_"
+
+# Change where mounts are created (default: "$HOME/nas_mounts")
+#export NAS_MOUNT_ROOT="$HOME/mounts"
+
+# Change the script installation directory
+#export NAS_MOUNT_SCRIPT_DIR="$HOME/bin/nas_mounts"
+
+# === Default Shares ===
+# Change the default share list
+#export NAS_MOUNT_DEFAULT_SHARES="documents photos music videos"
+
+# === Service Names ===
+# Change the LaunchAgent name (macOS)
+#export NAS_MOUNT_LAUNCHAGENT="com.mycompany.nas-mounts"
+
+# Change the systemd service name (Linux)
+#export NAS_MOUNT_SYSTEMD_SERVICE="my-nas-mounts"
+
+# === Mount Options ===
+# Change macOS mount options
+#export NAS_MOUNT_MACOS_OPTIONS="-N -o nobrowse,soft"
+
+# Change Linux mount options
+#export NAS_MOUNT_LINUX_OPTIONS="iocharset=utf8,file_mode=0755,dir_mode=0755,vers=3.0"
+
+# === Timeouts ===
+# Change unmount timeout (in deciseconds, 30 = 3 seconds)
+#export NAS_MOUNT_UNMOUNT_TIMEOUT="50"
+
+# Change force unmount timeout
+#export NAS_MOUNT_FORCE_UNMOUNT_TIMEOUT="30"
+
+# === GitHub Repository ===
+# Use your own fork
+#export NAS_MOUNT_GITHUB_USER="yourusername"
+#export NAS_MOUNT_GITHUB_REPO="nas_mount"
+#export NAS_MOUNT_GITHUB_BRANCH="main"
+
+# === Other Settings ===
+# Change log retention (number of debug logs to keep)
+#export NAS_MOUNT_DEBUG_LOG_RETENTION="20"
+
+# Change test file prefix
+#export NAS_MOUNT_TEST_FILE_PREFIX=".mount_test_"

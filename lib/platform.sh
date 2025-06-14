@@ -41,9 +41,9 @@ get_mount_command() {
     local pass="${NAS_PASS:?NAS_PASS not set}"
     
     if is_macos; then
-        echo "mount_smbfs -N -o nobrowse \"//${user}:${pass}@${host}/${share}\" \"${mount_point}\""
+        echo "mount_smbfs ${DEFAULT_MACOS_MOUNT_OPTIONS} \"//${user}:${pass}@${host}/${share}\" \"${mount_point}\""
     else
-        echo "sudo mount -t cifs \"//${host}/${share}\" \"${mount_point}\" -o username=${user},password=${pass},uid=$(id -u),gid=$(id -g),iocharset=utf8,file_mode=0777,dir_mode=0777"
+        echo "sudo mount -t cifs \"//${host}/${share}\" \"${mount_point}\" -o username=${user},password=${pass},uid=$(id -u),gid=$(id -g),${DEFAULT_LINUX_MOUNT_OPTIONS}"
     fi
 }
 

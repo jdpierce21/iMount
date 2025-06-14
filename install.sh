@@ -24,21 +24,28 @@ if [[ "${BASH_SOURCE[0]}" == "bash" ]] || [[ -z "${BASH_SOURCE[0]:-}" ]]; then
     cd "$HOME" || die "Cannot change to home directory"
     
     # Determine installation directory (can't use lib functions during bootstrap)
-    if [[ "$OSTYPE" == "darwin"* ]]; then
+    # Check for environment override first
+    if [[ -n "${NAS_MOUNT_SCRIPT_DIR:-}" ]]; then
+        INSTALL_DIR="${NAS_MOUNT_SCRIPT_DIR}"
+    elif [[ "$OSTYPE" == "darwin"* ]]; then
         # Check if lowercase scripts directory already exists and has nas_mounts
         if [[ -d "$HOME/scripts/nas_mounts" ]]; then
             INSTALL_DIR="$HOME/scripts/nas_mounts"
         else
-            INSTALL_DIR="$HOME/Scripts/nas_mounts"
+            INSTALL_DIR="${NAS_MOUNT_SCRIPT_DIR:-$HOME/Scripts/nas_mounts}"
         fi
     elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
-        INSTALL_DIR="$HOME/scripts/nas_mounts"
+        INSTALL_DIR="${NAS_MOUNT_SCRIPT_DIR:-$HOME/scripts/nas_mounts}"
     else
         die "Unsupported OS: $OSTYPE"
     fi
     
     # GitHub constants (can't source lib during bootstrap)
-    readonly GITHUB_URL="https://github.com/jdpierce21/nas_mount.git"
+    # Use environment overrides if available
+    readonly GITHUB_USER="${NAS_MOUNT_GITHUB_USER:-jdpierce21}"
+    readonly GITHUB_REPO="${NAS_MOUNT_GITHUB_REPO:-nas_mount}"
+    readonly GITHUB_BRANCH="${NAS_MOUNT_GITHUB_BRANCH:-master}"
+    readonly GITHUB_URL="https://github.com/${GITHUB_USER}/${GITHUB_REPO}.git"
     
     # Check for git
     if ! command -v git >/dev/null 2>&1; then
@@ -57,7 +64,7 @@ if [[ "${BASH_SOURCE[0]}" == "bash" ]] || [[ -z "${BASH_SOURCE[0]:-}" ]]; then
             cd "$HOME"
             rm -rf "$INSTALL_DIR"
             progress "Re-downloading repository"
-            if git clone --quiet --branch master \
+            if git clone --quiet --branch "$GITHUB_BRANCH" \
                 "$GITHUB_URL" "$INSTALL_DIR" >/dev/null 2>&1; then
                 progress_done
             else
@@ -74,7 +81,7 @@ if [[ "${BASH_SOURCE[0]}" == "bash" ]] || [[ -z "${BASH_SOURCE[0]:-}" ]]; then
             mv "$INSTALL_DIR" "${INSTALL_DIR}.backup.$(date +%s)"
         fi
         
-        if git clone --quiet --branch master \
+        if git clone --quiet --branch "$GITHUB_BRANCH" \
             "$GITHUB_URL" "$INSTALL_DIR" >/dev/null 2>&1; then
             progress_done
         else

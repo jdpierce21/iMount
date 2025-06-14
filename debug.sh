@@ -83,7 +83,7 @@ if is_macos; then
     if [[ -f "$PLIST" ]]; then
         echo "✓ LaunchAgent exists: $PLIST"
         echo "LaunchAgent status:"
-        launchctl list | grep com.jpierce.nas-mounts || echo "  Not loaded"
+        launchctl list | grep "$LAUNCHAGENT_NAME" || echo "  Not loaded"
     else
         echo "✗ No LaunchAgent found"
     fi
@@ -91,7 +91,7 @@ else
     SERVICE="$(get_systemd_service_path)"
     if [[ -f "$SERVICE" ]]; then
         echo "✓ Systemd service exists: $SERVICE"
-        systemctl --user status nas-mounts.service --no-pager || true
+        systemctl --user status "${SYSTEMD_SERVICE_NAME}.service" --no-pager || true
     else
         echo "✗ No systemd service found"
     fi
@@ -286,7 +286,7 @@ if [[ -n "${SHARES:-}" ]] && [[ -n "${NAS_HOST:-}" ]] && [[ -n "${NAS_USER:-}" ]
         ls -la "$mount_point" 2>&1 | head -10
         echo ""
         echo "Attempting to create test file..."
-        test_file="$mount_point/.nas_mount_test_$$"
+        test_file="$mount_point/${DEFAULT_TEST_FILE_PREFIX}$$"
         if touch "$test_file" 2>&1; then
             echo "✓ Write test successful"
             rm -f "$test_file"
@@ -535,9 +535,9 @@ fi
 echo ""
 echo "=== End Debug Report ==="
 
-# Clean up old debug logs (keep last 10)
+# Clean up old debug logs
 echo ""
 echo "Cleaning up old debug logs..."
 cd "$LOG_DIR"
-ls -t debug_*.log 2>/dev/null | tail -n +11 | xargs rm -f 2>/dev/null
-ls -t mount_err_*.log 2>/dev/null | tail -n +11 | xargs rm -f 2>/dev/null
+ls -t debug_*.log 2>/dev/null | tail -n +$((DEFAULT_DEBUG_LOG_RETENTION + 1)) | xargs rm -f 2>/dev/null
+ls -t mount_err_*.log 2>/dev/null | tail -n +$((DEFAULT_DEBUG_LOG_RETENTION + 1)) | xargs rm -f 2>/dev/null

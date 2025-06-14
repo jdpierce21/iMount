@@ -8,24 +8,29 @@ readonly _COMMON_SH_LOADED=1
 # Load output functions first
 source "$(dirname "${BASH_SOURCE[0]}")/output.sh"
 
+# Load defaults
+source "$(dirname "${BASH_SOURCE[0]}")/defaults.sh"
+
 # === Constants ===
-readonly GITHUB_USER="jdpierce21"
-readonly GITHUB_REPO="nas_mount"
-readonly GITHUB_BRANCH="master"
+# GitHub configuration
+readonly GITHUB_USER="${DEFAULT_GITHUB_USER}"
+readonly GITHUB_REPO="${DEFAULT_GITHUB_REPO}"
+readonly GITHUB_BRANCH="${DEFAULT_GITHUB_BRANCH}"
 readonly GITHUB_URL="https://github.com/${GITHUB_USER}/${GITHUB_REPO}.git"
 readonly GITHUB_RAW_URL="https://raw.githubusercontent.com/${GITHUB_USER}/${GITHUB_REPO}/${GITHUB_BRANCH}"
 
-readonly CREDENTIALS_FILENAME=".nas_credentials"
-readonly CONFIG_FILENAME="config.sh"
-readonly MOUNT_DIR_PREFIX="nas_"
+# File names
+readonly CREDENTIALS_FILENAME="${DEFAULT_CREDENTIALS_FILENAME}"
+readonly CONFIG_FILENAME="${DEFAULT_CONFIG_FILENAME}"
+readonly MOUNT_DIR_PREFIX="${DEFAULT_MOUNT_DIR_PREFIX}"
 
 # Platform-specific service names
-readonly LAUNCHAGENT_NAME="com.jpierce.nas-mounts"
-readonly SYSTEMD_SERVICE_NAME="nas-mounts"
+readonly LAUNCHAGENT_NAME="${DEFAULT_LAUNCHAGENT_NAME}"
+readonly SYSTEMD_SERVICE_NAME="${DEFAULT_SYSTEMD_SERVICE_NAME}"
 
-# Default values
-readonly DEFAULT_NAS_HOST="192.168.54.249"
-readonly DEFAULT_SHARES="backups documents media notes PacificRim photos timemachine_mbp14"
+# Default values for setup
+readonly DEFAULT_NAS_HOST="${DEFAULT_NAS_HOST}"
+readonly DEFAULT_SHARES="${DEFAULT_SHARES}"
 
 # === Path Functions ===
 # All paths derived from these functions - no hardcoding
@@ -53,27 +58,14 @@ get_script_dir() {
         return
     fi
     
-    # Fall back to OS-specific defaults
+    # Fall back to OS-specific defaults using the defaults function
     local os_type
     os_type=$(get_os_type)
-    
-    if [[ "$os_type" == "macos" ]]; then
-        # Check both possible locations
-        if [[ -d "$HOME/Scripts/nas_mounts" ]]; then
-            echo "$HOME/Scripts/nas_mounts"
-        elif [[ -d "$HOME/scripts/nas_mounts" ]]; then
-            echo "$HOME/scripts/nas_mounts"
-        else
-            # Default to capital S for new installations
-            echo "$HOME/Scripts/nas_mounts"
-        fi
-    else
-        echo "$HOME/scripts/nas_mounts"
-    fi
+    get_default_script_dir "$os_type"
 }
 
 get_config_dir() {
-    echo "$(get_script_dir)/config"
+    echo "$(get_script_dir)/${DEFAULT_CONFIG_DIR_NAME}"
 }
 
 get_config_file() {
@@ -85,16 +77,16 @@ get_credentials_file() {
 }
 
 get_mount_root() {
-    # Default mount location
-    echo "$HOME/nas_mounts"
+    # Default mount location (can be overridden)
+    echo "${DEFAULT_MOUNT_ROOT}"
 }
 
 get_log_dir() {
-    echo "$(get_script_dir)/logs"
+    echo "$(get_script_dir)/${DEFAULT_LOG_DIR_NAME}"
 }
 
 get_log_file() {
-    echo "$(get_log_dir)/nas_mount.log"
+    echo "$(get_log_dir)/${DEFAULT_LOG_FILENAME}"
 }
 
 # Platform-specific paths
