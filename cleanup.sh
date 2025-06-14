@@ -1,7 +1,7 @@
 #!/bin/bash
 # Complete removal of NAS mount system
 
-set -euo pipefail
+set -uo pipefail
 
 # Get script directory
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
