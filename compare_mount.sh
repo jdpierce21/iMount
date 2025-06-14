@@ -5,7 +5,8 @@ set -euo pipefail
 
 # Load configuration
 source config/config.sh
-source ~/.nas_credentials
+source lib/common.sh
+load_credentials
 
 echo "=== Mount Comparison Test ==="
 echo ""
