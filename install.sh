@@ -129,14 +129,17 @@ check_existing() {
 
 # === Main ===
 main() {
+    # Move to safe directory first (in case we're in a directory that will be deleted)
+    cd "$HOME" || cd / || true
+    
     # Check if already installed
     if check_existing; then
         message "Existing installation detected"
-        exec bash ./cleanup.sh < /dev/tty
+        cd "$SCRIPT_DIR" && exec bash ./cleanup.sh < /dev/tty
     fi
     
     # Fresh installation
-    exec bash ./setup.sh < /dev/tty
+    cd "$SCRIPT_DIR" && exec bash ./setup.sh < /dev/tty
 }
 
 main "$@"
