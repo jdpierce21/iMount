@@ -67,7 +67,7 @@ prompt_password() {
     local question="$1"
     local password
     read -s -p "$question: " password
-    echo ""  # New line after password
+    echo "" >&2  # New line to stderr so it doesn't get captured
     echo "$password"
 }
 
