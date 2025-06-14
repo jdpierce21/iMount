@@ -26,10 +26,16 @@ cmd_mount() {
         log_debug "Processing share: $share"
         log_debug "Mount point: $mount_point"
         
-        # Skip if already mounted
+        # Check if already mounted and verify it's working
         if is_mounted "$mount_point"; then
-            log_info "Share $share already mounted at $mount_point - skipping"
-            continue
+            # Test if mount is actually accessible
+            if ls "$mount_point" >/dev/null 2>&1; then
+                log_info "Share $share already mounted and accessible at $mount_point - skipping"
+                continue
+            else
+                log_info "Share $share has stale mount at $mount_point - unmounting"
+                umount "$mount_point" 2>/dev/null || true
+            fi
         fi
         
         # Ensure mount point exists
@@ -183,6 +189,16 @@ cmd_status() {
     message "$mounted of $total shares mounted"
 }
 
+cmd_remount() {
+    log_info "Force remounting all shares"
+    
+    # First unmount everything
+    cmd_unmount
+    
+    # Then mount fresh
+    cmd_mount
+}
+
 cmd_validate() {
     load_config
     load_credentials
@@ -241,6 +257,7 @@ Commands:
     mount      Mount all configured shares
     unmount    Unmount all shares
     status     Show mount status
+    remount    Force remount all shares
     validate   Check mount health
 EOF
 }
@@ -253,6 +270,7 @@ main() {
         mount) cmd_mount ;;
         unmount) cmd_unmount ;;
         status) cmd_status ;;
+        remount) cmd_remount ;;
         validate) cmd_validate ;;
         *) usage; exit 1 ;;
     esac
