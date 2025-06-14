@@ -107,11 +107,8 @@ load_config() {
     local config_file
     config_file=$(get_config_file)
     
-    log_debug "Loading config from: $config_file"
     if [[ -f "$config_file" ]]; then
         source "$config_file"
-        log_debug "Config loaded: NAS_HOST=$NAS_HOST, MOUNT_ROOT=$MOUNT_ROOT"
-        log_debug "Number of shares: ${#SHARES[@]}"
     else
         die "Configuration not found" "Run setup first"
     fi

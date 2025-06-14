@@ -48,23 +48,23 @@ main() {
     if [[ -f "$cred_file" ]]; then
         if prompt_yn "Delete saved credentials?" "N"; then
             rm -f "$cred_file"
-            log_info "Removed credentials"
         fi
     fi
     # Handle mount directories  
-    echo "DEBUG: Checking mount directories..." >&2
-    if [[ -f "$(get_config_file)" ]]; then
-        echo "DEBUG: Config exists, loading..." >&2
-        load_config
-        if [[ -d "$MOUNT_ROOT" ]]; then
+    local config_file
+    config_file=$(get_config_file)
+    if [[ -f "$config_file" ]]; then
+        # Extract MOUNT_ROOT without sourcing the file
+        local mount_root
+        mount_root=$(grep "^MOUNT_ROOT=" "$config_file" | cut -d'"' -f2)
+        if [[ -n "$mount_root" ]] && [[ -d "$mount_root" ]]; then
             # Remove ALL mount directories (not just empty ones)
-            rm -rf "$MOUNT_ROOT"/${MOUNT_DIR_PREFIX}* 2>/dev/null || true
+            rm -rf "$mount_root"/${MOUNT_DIR_PREFIX}* 2>/dev/null || true
             # Try to remove mount root if empty
-            rmdir "$MOUNT_ROOT" 2>/dev/null || true
+            rmdir "$mount_root" 2>/dev/null || true
         fi
     fi
     # Handle script directory
-    echo "DEBUG: About to prompt for script directory..." >&2
     if prompt_yn "Remove script directory?" "Y"; then
         rm -rf "$SCRIPT_DIR"
         
