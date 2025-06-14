@@ -370,6 +370,18 @@ if [[ -n "${SHARES:-}" ]] && [[ -n "${NAS_HOST:-}" ]] && [[ -n "${NAS_USER:-}" ]
     echo "  Unmounting $share..."
     umount "$mount_point" 2>/dev/null || true
     
+    # Now mount manually
+    echo "  Manually mounting $share..."
+    echo "  Command: mount_smbfs -N -o nobrowse \"//${NAS_USER}:${NAS_PASS}@${NAS_HOST}/${share}\" \"${mount_point}\""
+    mount_smbfs -N -o nobrowse "//${NAS_USER}:${NAS_PASS}@${NAS_HOST}/${share}" "${mount_point}"
+    
+    echo "  Checking contents:"
+    ls -la "$mount_point" | head -10
+    
+    # Unmount again
+    echo "  Cleaning up..."
+    umount "$mount_point" 2>/dev/null || true
+    
     # Test different SMB versions
     echo ""
     echo "TEST 6: SMB Protocol Version Tests..."
