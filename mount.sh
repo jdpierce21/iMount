@@ -145,8 +145,23 @@ cmd_unmount() {
         progress "Unmounting $share"
         # Execute directly based on platform to avoid eval issues
         if is_macos; then
+            # Try normal unmount first
             unmount_output=$(umount "${mount_point}" 2>&1)
             unmount_result=$?
+            
+            # If busy, try diskutil unmount
+            if [[ $unmount_result -ne 0 ]] && [[ "$unmount_output" == *"busy"* ]]; then
+                log_debug "Mount busy, trying diskutil unmount for $share"
+                unmount_output=$(diskutil unmount "${mount_point}" 2>&1)
+                unmount_result=$?
+            fi
+            
+            # If still failing, try force unmount
+            if [[ $unmount_result -ne 0 ]]; then
+                log_debug "Trying force unmount for $share"
+                unmount_output=$(diskutil unmount force "${mount_point}" 2>&1)
+                unmount_result=$?
+            fi
             
             if [[ $unmount_result -eq 0 ]]; then
                 progress_done
