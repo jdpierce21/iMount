@@ -133,6 +133,7 @@ load_credentials() {
         NAS_USER=$(cut -d'%' -f1 "$cred_file")
         NAS_PASS=$(cut -d'%' -f2- "$cred_file")
         export NAS_USER NAS_PASS
+        log_debug "Loaded credentials: user=$NAS_USER, pass_length=${#NAS_PASS}"
     else
         die "Credentials not found" "Run setup first"
     fi
@@ -168,6 +169,10 @@ log_info() {
 
 log_error() {
     log "ERROR" "$1"
+}
+
+log_debug() {
+    log "DEBUG" "$1"
 }
 
 # === Common Utilities ===

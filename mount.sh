@@ -16,6 +16,8 @@ cmd_mount() {
     load_config
     load_credentials
     
+    log_info "Starting mount operation for ${#SHARES[@]} shares"
+    
     local share mount_point mount_cmd
     local failed=0
     
@@ -37,16 +39,26 @@ cmd_mount() {
         progress "Mounting $share"
         # Execute directly based on platform to avoid eval quote issues
         if is_macos; then
+            # Log the exact command for debugging
+            log_debug "Mount command: mount_smbfs -N -o nobrowse \"//${NAS_USER}:****@${NAS_HOST}/${share}\" \"${mount_point}\""
+            
             # Capture mount output for logging
             mount_output=$(mount_smbfs -N -o nobrowse "//${NAS_USER}:${NAS_PASS}@${NAS_HOST}/${share}" "${mount_point}" 2>&1)
             mount_result=$?
             
             if [[ $mount_result -eq 0 ]]; then
                 progress_done
-                log_info "Mounted $share"
+                log_info "Mounted $share to $mount_point"
+                
+                # Verify mount actually worked by checking if it's in mount table
+                if mount | grep -q " ${mount_point} "; then
+                    log_debug "Mount verified in mount table"
+                else
+                    log_error "Mount command succeeded but not found in mount table!"
+                fi
             else
                 progress_fail
-                log_error "Failed to mount $share: $mount_output"
+                log_error "Failed to mount $share: exit code $mount_result, output: $mount_output"
                 ((failed++))
             fi
         else
