@@ -145,36 +145,51 @@ remove_launchagent() {
 # === Linux systemd ===
 create_systemd_service() {
     local mount_script="$1"
-    local service_path
-    service_path=$(get_systemd_service_path)
     
-    ensure_dir "$(dirname "$service_path")"
+    # For Linux, add to shell profile instead of systemd
+    # This allows sudo password prompts
+    message "Note: On Linux, auto-mount will prompt for sudo password at login"
     
-    cat > "$service_path" <<EOF
-[Unit]
-Description=Mount NAS shares
-After=network-online.target
-Wants=network-online.target
+    local shell_rc
+    shell_rc=$(get_shell_rc) || return 1
+    
+    # Check if auto-mount already exists
+    if grep -q "# NAS auto-mount at login" "$shell_rc"; then
+        return 0
+    fi
+    
+    # Add auto-mount to shell profile
+    cat >> "$shell_rc" <<EOF
 
-[Service]
-Type=oneshot
-ExecStart=${mount_script} mount
-ExecStop=${mount_script} unmount
-RemainAfterExit=yes
-StandardOutput=journal
-StandardError=journal
-
-[Install]
-WantedBy=default.target
+# NAS auto-mount at login
+if [[ -f "$mount_script" ]] && [[ -z "\${NAS_MOUNTS_STARTED:-}" ]]; then
+    export NAS_MOUNTS_STARTED=1
+    echo "Mounting NAS shares..."
+    "$mount_script" mount
+fi
 EOF
     
-    # Enable and start the service
-    systemctl --user daemon-reload
-    systemctl --user enable "${SYSTEMD_SERVICE_NAME}.service"
-    systemctl --user start "${SYSTEMD_SERVICE_NAME}.service"
+    return 0
 }
 
 remove_systemd_service() {
+    # Remove from shell profile
+    local shell_rc
+    
+    for shell_rc in "$HOME/.bashrc" "$HOME/.zshrc"; do
+        if [[ -f "$shell_rc" ]] && grep -q "# NAS auto-mount at login" "$shell_rc"; then
+            # Create backup
+            cp "$shell_rc" "${shell_rc}.backup"
+            # Remove auto-mount section
+            if is_macos; then
+                sed -i '' '/# NAS auto-mount at login/,/^fi$/d' "$shell_rc"
+            else
+                sed -i '/# NAS auto-mount at login/,/^fi$/d' "$shell_rc"
+            fi
+        fi
+    done
+    
+    # Also remove any old systemd service if it exists
     local service_path
     service_path=$(get_systemd_service_path)
     
