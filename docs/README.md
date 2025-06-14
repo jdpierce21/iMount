@@ -10,6 +10,16 @@ cd ~ && curl -fsSL https://raw.githubusercontent.com/jdpierce21/nas_mount/master
 
 **Note**: Always run from your home directory to avoid shell warnings if reinstalling.
 
+### Linux Setup
+
+On Linux, you'll need to configure passwordless sudo for mount commands (one-time setup):
+
+```bash
+echo "$USER ALL=(ALL) NOPASSWD: /usr/bin/mount, /usr/bin/umount" | sudo tee /etc/sudoers.d/nas-mount
+```
+
+This allows the auto-mount service to work without password prompts.
+
 ## Usage
 
 ```bash
