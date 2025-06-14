@@ -64,8 +64,7 @@ if [[ "${BASH_SOURCE[0]}" == "bash" ]] || [[ -z "${BASH_SOURCE[0]:-}" ]]; then
             cd "$HOME"
             rm -rf "$INSTALL_DIR"
             progress "Re-downloading repository"
-            if git clone --quiet --branch "$GITHUB_BRANCH" \
-                "$GITHUB_URL" "$INSTALL_DIR" >/dev/null 2>&1; then
+            if git clone --quiet --branch "$GITHUB_BRANCH" "$GITHUB_URL" "$INSTALL_DIR" >/dev/null 2>&1; then
                 progress_done
             else
                 progress_fail
@@ -81,8 +80,7 @@ if [[ "${BASH_SOURCE[0]}" == "bash" ]] || [[ -z "${BASH_SOURCE[0]:-}" ]]; then
             mv "$INSTALL_DIR" "${INSTALL_DIR}.backup.$(date +%s)"
         fi
         
-        if git clone --quiet --branch "$GITHUB_BRANCH" \
-            "$GITHUB_URL" "$INSTALL_DIR" >/dev/null 2>&1; then
+        if git clone --quiet --branch "$GITHUB_BRANCH" "$GITHUB_URL" "$INSTALL_DIR" >/dev/null 2>&1; then
             progress_done
         else
             progress_fail
