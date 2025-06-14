@@ -12,7 +12,7 @@ source lib/common.sh
 source lib/platform.sh
 
 # === Ensure stdin is connected ===
-if [[ ! -t 0 ]]; then
+if [[ ! -t 0 ]] && [[ -e /dev/tty ]]; then
     exec < /dev/tty
 fi
 
