@@ -72,6 +72,8 @@ main() {
         
         # Offer reinstall
         if prompt_yn "Reinstall NAS mounts?" "Y"; then
+            # Change to parent directory before reinstalling
+            cd "$(dirname "$SCRIPT_DIR")"
             curl -fsSL "$(get_install_url)" | bash
         fi
     else
