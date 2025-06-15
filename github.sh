@@ -68,6 +68,7 @@ git status --short
 
 # Add all changes
 log "Adding all changes..."
+echo ""
 git add -A
 
 # Get commit message
