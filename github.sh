@@ -3,7 +3,7 @@
 
 
 # === Constants ===
-readonly SCRIPT_NAME="Git Manager"
+SCRIPT_NAME="Git Manager"
 
 # Auto-detect from git config
 readonly REMOTE_URL=$(git config --get remote.origin.url 2>/dev/null || echo "")
@@ -71,7 +71,7 @@ git status --short
 # Add all changes
 log "Adding all changes..."
 echo ""
-echo "===[GitHub Response]==="
+echo "===[Remote Response]==="
 git add -A
 
 # Get commit message
