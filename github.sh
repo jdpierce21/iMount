@@ -4,10 +4,14 @@
 
 # === Constants ===
 readonly SCRIPT_NAME="Git Manager"
-readonly GITHUB_USER="${NAS_MOUNT_GITHUB_USER:-jdpierce21}"
-readonly GITHUB_REPO="${NAS_MOUNT_GITHUB_REPO:-nas_mount}"
-readonly GITHUB_BRANCH="${NAS_MOUNT_GITHUB_BRANCH:-master}"
-readonly GITHUB_URL="https://github.com/${GITHUB_USER}/${GITHUB_REPO}.git"
+
+# Auto-detect from git config
+readonly REMOTE_URL=$(git config --get remote.origin.url 2>/dev/null || echo "")
+readonly CURRENT_BRANCH=$(git branch --show-current 2>/dev/null || echo "master")
+readonly GITHUB_USER="${BASH_REMATCH[1]}"
+readonly GITHUB_REPO="${BASH_REMATCH[2]}"
+readonly GITHUB_BRANCH="${NAS_MOUNT_GITHUB_BRANCH:-$CURRENT_BRANCH}"
+readonly GITHUB_URL="${REMOTE_URL:-https://github.com/${GITHUB_USER}/${GITHUB_REPO}.git}"
     
 # === Functions ===
 die() {
