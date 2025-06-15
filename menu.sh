@@ -1,0 +1,600 @@
+#!/bin/bash
+# Interactive CLI menu for NAS mount management
+
+set -euo pipefail
+
+# Get script directory
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
+
+# Load libraries
+source lib/common.sh
+source lib/platform.sh
+source lib/output.sh
+
+# Menu colors
+MENU_HEADER="\033[1;36m"  # Cyan bold
+MENU_OPTION="\033[1;33m"  # Yellow bold
+MENU_STATUS="\033[1;32m"  # Green bold
+MENU_ERROR="\033[1;31m"   # Red bold
+MENU_RESET="\033[0m"
+
+# === Menu Functions ===
+
+# Helper function for yes/no confirmations
+# Usage: confirm_action "message"
+# Returns: 0 for yes, 1 for no
+confirm_action() {
+    local message="$1"
+    echo -e "${MENU_ERROR}${message}${MENU_RESET}"
+    
+    local choice=$(display_menu "Confirm: " "Yes" "No")
+    
+    case $choice in
+        1) return 0 ;;  # Yes
+        *) return 1 ;;  # No or any other option
+    esac
+}
+
+# Helper function to display menu and handle input
+# Usage: display_menu "prompt" "option1" "option2" ... 
+# Returns: Selected option number (1-based) or 0 for quit
+display_menu() {
+    local prompt="$1"
+    shift
+    local options=("$@")
+    local i choice
+    
+    # Display options to stderr so they show when function output is captured
+    for i in "${!options[@]}"; do
+        echo "[$((i+1))] ${options[$i]}" >&2
+    done
+    echo "[Q] Exit/Back" >&2
+    echo >&2
+    
+    # Get input
+    read -p "$prompt" choice
+    
+    # Convert to lowercase for q/Q handling (compatible with older bash)
+    choice="$(echo "$choice" | tr '[:upper:]' '[:lower:]')"
+    
+    # Handle quit
+    if [[ "$choice" == "q" ]]; then
+        echo "0"
+        return
+    fi
+    
+    # Validate numeric input
+    if [[ "$choice" =~ ^[0-9]+$ ]] && [[ "$choice" -ge 1 ]] && [[ "$choice" -le "${#options[@]}" ]]; then
+        echo "$choice"
+    else
+        echo "Invalid option" >&2
+        sleep 1
+        echo "-1"  # Signal invalid input
+    fi
+}
+
+show_header() {
+    clear
+    echo -e "${MENU_HEADER}======================================${MENU_RESET}"
+    echo -e "${MENU_HEADER}       NAS Mount Manager Menu         ${MENU_RESET}"
+    echo -e "${MENU_HEADER}======================================${MENU_RESET}"
+    echo
+}
+
+show_mount_status() {
+    load_config
+    echo -e "${MENU_STATUS}Current Mount Status:${MENU_RESET}"
+    echo "-------------------------------------"
+    
+    local share mount_point status_text status_color
+    for share in "${SHARES[@]}"; do
+        mount_point="${MOUNT_ROOT}/${MOUNT_DIR_PREFIX}${share}"
+        
+        if is_mounted "$mount_point" && ls "$mount_point" >/dev/null 2>&1; then
+            status_text="✓ Mounted"
+            status_color="${MENU_STATUS}"
+        else
+            status_text="✗ Not Mounted"
+            status_color="${MENU_ERROR}"
+        fi
+        
+        printf "%-20s %b%s%b\n" "$share:" "$status_color" "$status_text" "$MENU_RESET"
+    done
+    echo
+}
+
+show_launch_agent_status() {
+    echo -e "${MENU_STATUS}Launch Agent Status:${MENU_RESET}"
+    echo "-------------------------------------"
+    
+    local plist_path="$HOME/Library/LaunchAgents/com.jpierce.nas-mounts.plist"
+    
+    if [[ -f "$plist_path" ]]; then
+        printf "%-20s %b%s%b\n" "Installation:" "${MENU_STATUS}" "✓ Installed" "${MENU_RESET}"
+        
+        # Capture launchctl output to variable first for reliable checking
+        local launchctl_output
+        launchctl_output=$(launchctl list 2>/dev/null || true)
+        
+        # Check if our service is in the output
+        if echo "$launchctl_output" | grep -q "com.jpierce.nas-mounts"; then
+            printf "%-20s %b%s%b\n" "Status:" "${MENU_STATUS}" "✓ Loaded" "${MENU_RESET}"
+        else
+            printf "%-20s %b%s%b\n" "Status:" "${MENU_ERROR}" "✗ Not Loaded" "${MENU_RESET}"
+        fi
+    else
+        printf "%-20s %b%s%b\n" "Installation:" "${MENU_ERROR}" "✗ Not Installed" "${MENU_RESET}"
+    fi
+    echo
+}
+
+mount_all() {
+    echo -e "${MENU_STATUS}Mounting all shares...${MENU_RESET}"
+    ./mount.sh mount
+    echo
+    echo "Press Enter to continue..."
+    read -r
+}
+
+unmount_all() {
+    echo -e "${MENU_STATUS}Unmounting all shares...${MENU_RESET}"
+    ./mount.sh unmount
+    echo
+    echo "Press Enter to continue..."
+    read -r
+}
+
+verify_mounts() {
+    load_config
+    echo -e "${MENU_STATUS}Verifying mounts with test operations...${MENU_RESET}"
+    echo
+    
+    local share mount_point test_file
+    for share in "${SHARES[@]}"; do
+        mount_point="${MOUNT_ROOT}/${MOUNT_DIR_PREFIX}${share}"
+        test_file="$mount_point/.nas_mount_test_$$"
+        
+        echo -n "Testing $share... "
+        
+        if is_mounted "$mount_point"; then
+            # Try to create and delete a test file
+            if touch "$test_file" 2>/dev/null && rm "$test_file" 2>/dev/null; then
+                echo -e "${MENU_STATUS}✓ Working${MENU_RESET}"
+            else
+                echo -e "${MENU_ERROR}✗ Mounted but not writable${MENU_RESET}"
+            fi
+        else
+            echo -e "${MENU_ERROR}✗ Not mounted${MENU_RESET}"
+        fi
+    done
+    
+    echo
+    echo "Press Enter to continue..."
+    read -r
+}
+
+test_connection() {
+    load_config
+    echo -e "${MENU_STATUS}Testing connection to remote host...${MENU_RESET}"
+    echo "-------------------------------------"
+    echo "Remote host: $NAS_HOST"
+    echo
+    
+    validate_host "$NAS_HOST"
+    local result=$?
+    
+    echo
+    case $result in
+        0)
+            echo -e "${MENU_STATUS}Connection test successful!${MENU_RESET}"
+            echo "The remote host is fully accessible for SMB operations."
+            ;;
+        1)
+            echo -e "${MENU_ERROR}Connection test failed!${MENU_RESET}"
+            echo "The remote host is not reachable. Please check:"
+            echo "- Network connectivity"
+            echo "- Hostname/IP address is correct"
+            echo "- Remote host is powered on"
+            ;;
+        2)
+            echo -e "${MENU_ERROR}Partial connection!${MENU_RESET}"
+            echo "The host is reachable but SMB is not accessible. Please check:"
+            echo "- SMB/CIFS service is running on the remote host"
+            echo "- Firewall is not blocking port 445"
+            echo "- SMB sharing is enabled"
+            ;;
+    esac
+    
+    echo
+    echo "Press Enter to continue..."
+    read -r
+}
+
+edit_configuration() {
+    while true; do
+        show_header
+        echo -e "${MENU_STATUS}Current Configuration:${MENU_RESET}"
+        echo "-------------------------------------"
+        
+        load_config
+        echo "Remote Host: $NAS_HOST"
+        echo "Mount Root: $MOUNT_ROOT"
+        echo
+        echo "Existing Mounts:"
+        for share in "${SHARES[@]}"; do
+            echo "${MOUNT_DIR_PREFIX}${share}"
+        done
+        echo
+        
+        echo -e "${MENU_OPTION}Configuration Options:${MENU_RESET}"
+        
+        local choice=$(display_menu "Select option: " \
+            "Edit remote host" \
+            "Add a local mount" \
+            "Remove a local mount" \
+            "Edit local mount root directory" \
+            "Edit credentials")
+        
+        case $choice in
+            0) return ;;  # Back to main menu
+            1) edit_nas_host ;;
+            2) add_share ;;
+            3) remove_share ;;
+            4) edit_mount_root ;;
+            5) edit_credentials ;;
+            -1) ;;  # Invalid option, loop will refresh
+        esac
+    done
+}
+
+edit_nas_host() {
+    local new_host=""
+    local valid=false
+    
+    while [[ "$valid" == "false" ]]; do
+        echo
+        if ! read_input "Enter new remote host IP/hostname (current: $NAS_HOST) or Q to cancel: " new_host; then
+            return  # User pressed q/Q
+        fi
+        
+        # If empty, keep current value and exit
+        if [[ -z "$new_host" ]]; then
+            return
+        fi
+        
+        # Validate the host using helper function
+        validate_host "$new_host"
+        local result=$?
+        
+        case $result in
+            0)  # Fully valid
+                sed -i '' "s/^NAS_HOST=.*/NAS_HOST=\"$new_host\"/" config/config.sh
+                echo -e "${MENU_STATUS}Remote host updated to: $new_host${MENU_RESET}"
+                echo "Press Enter to continue..."
+                read -r
+                valid=true
+                ;;
+            1)  # Not reachable
+                echo "Please check the hostname/IP and try again."
+                # Loop back to prompt automatically
+                ;;
+            2)  # Reachable but SMB not accessible
+                echo
+                if confirm_action "Save anyway?"; then
+                    sed -i '' "s/^NAS_HOST=.*/NAS_HOST=\"$new_host\"/" config/config.sh
+                    echo -e "${MENU_STATUS}Remote host updated to: $new_host${MENU_RESET}"
+                    echo "Press Enter to continue..."
+                    read -r
+                    valid=true
+                fi
+                # If not saving, loop back to prompt
+                ;;
+        esac
+    done
+}
+
+add_share() {
+    while true; do
+        echo
+        if ! read_input "Enter share name to add (or press Enter/Q to cancel): " new_share; then
+            return  # User pressed q/Q
+        fi
+        
+        # If empty, return to config menu
+        if [[ -z "$new_share" ]]; then
+            return
+        fi
+        
+        # Validate share name format
+        if [[ ! "$new_share" =~ ^[a-zA-Z0-9_-]+$ ]]; then
+            echo -e "${MENU_ERROR}✗ Invalid share name${MENU_RESET}"
+            echo "Only letters, numbers, underscore, and hyphen allowed."
+            continue
+        fi
+        
+        # Check if share already exists in config
+        local share_exists=false
+        for share in "${SHARES[@]}"; do
+            if [[ "$share" == "$new_share" ]]; then
+                share_exists=true
+                break
+            fi
+        done
+        
+        if [[ "$share_exists" == "true" ]]; then
+            echo -e "${MENU_ERROR}✗ Share '$new_share' already exists${MENU_RESET}"
+            continue
+        fi
+        
+        # Test if share exists on remote server
+        echo "Validating share on remote server..."
+        
+        # Load credentials for share listing
+        load_credentials
+        
+        # Try to list shares with authentication
+        local share_list
+        if [[ -n "${NAS_USER:-}" ]]; then
+            # Use authenticated view - filter out header lines and extract share names
+            share_list=$(smbutil view "//${NAS_USER}@${NAS_HOST}" 2>&1 <<< "$NAS_PASS" | \
+                grep -E "^[a-zA-Z0-9_-]+\s+Disk" | \
+                awk '{print $1}' 2>/dev/null || true)
+        else
+            # Try unauthenticated view (may not show all shares)
+            share_list=$(smbutil view -N "//${NAS_HOST}" 2>&1 | \
+                grep -E "^[a-zA-Z0-9_-]+\s+Disk" | \
+                awk '{print $1}' 2>/dev/null || true)
+        fi
+        
+        if echo "$share_list" | grep -q "^${new_share}$"; then
+            echo -e "${MENU_STATUS}✓ Share exists on remote server${MENU_RESET}"
+            
+            # Add to SHARES array in config
+            sed -i '' "/^SHARES=(/s/)$/ \"$new_share\")/" config/config.sh
+            echo -e "${MENU_STATUS}Share '${MOUNT_DIR_PREFIX}${new_share}' added successfully${MENU_RESET}"
+            
+            # Reload config to reflect changes
+            load_config
+            
+            echo "Press Enter to continue..."
+            read -r
+            return  # Go back to config menu
+        else
+            echo -e "${MENU_ERROR}✗ Share '$new_share' not found on remote server${MENU_RESET}"
+            
+            if [[ -n "$share_list" ]]; then
+                echo "Available shares on ${NAS_HOST}:"
+                echo "$share_list" | sort | sed 's/^/  /'
+            else
+                echo "Unable to list available shares (authentication may be required)"
+            fi
+            echo
+            
+            if confirm_action "Add anyway?"; then
+                # Add even though it doesn't exist
+                sed -i '' "/^SHARES=(/s/)$/ \"$new_share\")/" config/config.sh
+                echo -e "${MENU_STATUS}Share '${MOUNT_DIR_PREFIX}${new_share}' added (not verified)${MENU_RESET}"
+                
+                # Reload config to reflect changes
+                load_config
+                
+                echo "Press Enter to continue..."
+                read -r
+                return  # Go back to config menu
+            fi
+            # If not adding, loop back to prompt
+        fi
+    done
+}
+
+remove_share() {
+    while true; do
+        echo
+        echo -e "${MENU_STATUS}Current shares:${MENU_RESET}"
+        
+        if [[ ${#SHARES[@]} -eq 0 ]]; then
+            echo "No shares configured."
+            echo "Press Enter to continue..."
+            read -r
+            return
+        fi
+        
+        # Build share list for menu
+        local share_list=()
+        for share in "${SHARES[@]}"; do
+            share_list+=("${MOUNT_DIR_PREFIX}${share}")
+        done
+        
+        local choice=$(display_menu "Select share to remove: " "${share_list[@]}")
+        
+        case $choice in
+            0) return ;;  # Back to config menu
+            -1) ;;  # Invalid option, loop will refresh
+            *)
+                if [[ $choice -ge 1 && $choice -le ${#SHARES[@]} ]]; then
+                    local share_to_remove="${SHARES[$((choice-1))]}"
+                    
+                    # Confirm removal
+                    echo
+                    if confirm_action "Are you sure you want to remove '${MOUNT_DIR_PREFIX}${share_to_remove}'?"; then
+                        # Remove from config file
+                        sed -i '' "s/\"$share_to_remove\"//g" config/config.sh
+                        # Clean up extra spaces and empty elements
+                        sed -i '' 's/  */ /g' config/config.sh
+                        sed -i '' 's/( /(/g' config/config.sh
+                        sed -i '' 's/ )/)/g' config/config.sh
+                        
+                        echo -e "${MENU_STATUS}Share '${MOUNT_DIR_PREFIX}${share_to_remove}' removed${MENU_RESET}"
+                        
+                        # Reload config for next iteration
+                        load_config
+                        
+                        echo "Press Enter to continue..."
+                        read -r
+                        
+                        # If no more shares, return to config menu
+                        if [[ ${#SHARES[@]} -eq 0 ]]; then
+                            return
+                        fi
+                    else
+                        echo "Removal cancelled."
+                    fi
+                fi
+                ;;
+        esac
+    done
+}
+
+edit_mount_root() {
+    echo
+    if ! read_input "Enter new mount root directory (current: $MOUNT_ROOT) or Q to cancel: " new_root; then
+        return  # User pressed q/Q
+    fi
+    if [[ -n "$new_root" ]]; then
+        sed -i '' "s|^MOUNT_ROOT=.*|MOUNT_ROOT=\"$new_root\"|" config/config.sh
+        echo -e "${MENU_STATUS}Mount root updated to: $new_root${MENU_RESET}"
+    fi
+    echo "Press Enter to continue..."
+    read -r
+}
+
+edit_credentials() {
+    echo
+    echo "Enter NAS credentials:"
+    if ! read_input "Username (or Q to cancel): " username; then
+        return  # User pressed q/Q
+    fi
+    if ! read_secure_input "Password (or Q to cancel): " password; then
+        return  # User pressed q/Q
+    fi
+    
+    if [[ -n "$username" && -n "$password" ]]; then
+        echo "${username}%${password}" > "$HOME/.nas_credentials"
+        chmod 600 "$HOME/.nas_credentials"
+        echo -e "${MENU_STATUS}Credentials updated${MENU_RESET}"
+    fi
+    echo "Press Enter to continue..."
+    read -r
+}
+
+manage_launch_agent() {
+    while true; do
+        show_header
+        show_launch_agent_status
+        
+        echo -e "${MENU_OPTION}Launch Agent Options:${MENU_RESET}"
+        
+        local choice=$(display_menu "Select option: " \
+            "Install/Update Launch Agent" \
+            "Uninstall Launch Agent" \
+            "Load Launch Agent" \
+            "Unload Launch Agent" \
+            "View Launch Agent logs")
+        
+        case $choice in
+            0) return ;;  # Back to main menu
+            1) install_launch_agent ;;
+            2) uninstall_launch_agent ;;
+            3) load_launch_agent ;;
+            4) unload_launch_agent ;;
+            5) view_launch_logs ;;
+            -1) ;;  # Invalid option, loop will refresh
+        esac
+    done
+}
+
+install_launch_agent() {
+    echo
+    echo -e "${MENU_STATUS}Installing Launch Agent...${MENU_RESET}"
+    ./utils/setup_auto_mount.sh
+    echo "Press Enter to continue..."
+    read -r
+}
+
+uninstall_launch_agent() {
+    echo
+    if confirm_action "Are you sure you want to uninstall the Launch Agent?"; then
+        echo -e "${MENU_STATUS}Uninstalling Launch Agent...${MENU_RESET}"
+        # Use modern launchctl commands
+        launchctl bootout gui/$(id -u)/com.jpierce.nas-mounts 2>/dev/null || true
+        rm -f "$HOME/Library/LaunchAgents/com.jpierce.nas-mounts.plist"
+        echo "Launch Agent uninstalled"
+    else
+        echo "Uninstall cancelled."
+    fi
+    echo "Press Enter to continue..."
+    read -r
+}
+
+load_launch_agent() {
+    echo
+    echo -e "${MENU_STATUS}Loading Launch Agent...${MENU_RESET}"
+    # Use modern launchctl commands
+    launchctl bootstrap gui/$(id -u) "$HOME/Library/LaunchAgents/com.jpierce.nas-mounts.plist" 2>/dev/null || {
+        # If already loaded, just start it
+        launchctl kickstart -k gui/$(id -u)/com.jpierce.nas-mounts 2>/dev/null || true
+    }
+    echo "Launch Agent loaded/restarted"
+    echo "Press Enter to continue..."
+    read -r
+}
+
+unload_launch_agent() {
+    echo
+    echo -e "${MENU_STATUS}Unloading Launch Agent...${MENU_RESET}"
+    # Use modern launchctl commands
+    launchctl bootout gui/$(id -u)/com.jpierce.nas-mounts 2>/dev/null || true
+    echo "Launch Agent unloaded"
+    echo "Press Enter to continue..."
+    read -r
+}
+
+view_launch_logs() {
+    echo
+    echo -e "${MENU_STATUS}Recent Launch Agent logs:${MENU_RESET}"
+    echo "-------------------------------------"
+    if [[ -f "logs/launchagent.log" ]]; then
+        tail -n 20 logs/launchagent.log
+    else
+        echo "No logs found"
+    fi
+    echo
+    echo "Press Enter to continue..."
+    read -r
+}
+
+# === Main Menu ===
+main_menu() {
+    while true; do
+        show_header
+        show_mount_status
+        show_launch_agent_status
+        
+        echo -e "${MENU_OPTION}Main Menu Options:${MENU_RESET}"
+        
+        local choice=$(display_menu "Select option: " \
+            "Mount all shares" \
+            "Unmount all shares" \
+            "Verify mounts (test read/write)" \
+            "Test remote connection" \
+            "Edit configuration" \
+            "Manage Launch Agent" \
+            "View logs")
+        
+        case $choice in
+            0) exit 0 ;;  # Quit
+            1) mount_all ;;
+            2) unmount_all ;;
+            3) verify_mounts ;;
+            4) test_connection ;;
+            5) edit_configuration ;;
+            6) manage_launch_agent ;;
+            7) less logs/nas_mount.log ;;
+            -1) ;;  # Invalid option, loop will refresh
+        esac
+    done
+}
+
+# Start the menu
+main_menu
