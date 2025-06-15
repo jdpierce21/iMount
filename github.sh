@@ -31,7 +31,7 @@ fi
 
 # === Main Script ===
 echo ""
-echo "===[$SCRIPT_NAME]==="
+echo "===[Starting]==="
 log "Checking for uncommitted changes..."
 
 # Check if we're in a git repository
@@ -93,5 +93,5 @@ if ! git push origin "$GITHUB_BRANCH" 2>&1; then
 fi
 
 echo ""
-echo "===[$SCRIPT_NAME]==="
+echo "===[Complete]==="
 log "Successfully pushed changes to GitHub!"
