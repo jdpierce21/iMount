@@ -30,6 +30,7 @@ if ! command -v git >/dev/null 2>&1; then
 fi
 
 # === Main Script ===
+echo "===[$SCRIPT_NAME]==="
 log "Checking for uncommitted changes..."
 
 # Check if we're in a git repository
@@ -69,6 +70,7 @@ git status --short
 # Add all changes
 log "Adding all changes..."
 echo ""
+echo "===[GitHub Response]==="
 git add -A
 
 # Get commit message
