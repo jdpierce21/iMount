@@ -4,7 +4,6 @@
 
 # === Constants ===
 readonly SCRIPT_NAME="GitHub Repo Add, Commit, and Push"
-readonly SCRIPT_VERSION="2.0.0"
 readonly GITHUB_USER="${NAS_MOUNT_GITHUB_USER:-jdpierce21}"
 readonly GITHUB_REPO="${NAS_MOUNT_GITHUB_REPO:-nas_mount}"
 readonly GITHUB_BRANCH="${NAS_MOUNT_GITHUB_BRANCH:-master}"
