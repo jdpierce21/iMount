@@ -21,7 +21,7 @@ die() {
 }
 
 log() {
-    echo "[$SCRIPT_NAME] $1"
+    echo "[$SCRIPT_NAME] $(date '+%Y-%m-%d %H:%M:%S') $1"
 }
 
 # Check for git
