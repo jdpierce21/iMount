@@ -30,6 +30,7 @@ if ! command -v git >/dev/null 2>&1; then
 fi
 
 # === Main Script ===
+echo ""
 echo "===[$SCRIPT_NAME]==="
 log "Checking for uncommitted changes..."
 
@@ -91,5 +92,6 @@ if ! git push origin "$GITHUB_BRANCH" 2>&1; then
     git push --set-upstream origin "$GITHUB_BRANCH" || die "Failed to push to remote repository!"
 fi
 
+echo ""
+echo "===[$SCRIPT_NAME]==="
 log "Successfully pushed changes to GitHub!"
-
