@@ -29,7 +29,8 @@ get_version() {
     echo "$version"
 }
 
-readonly MENU_VERSION="$(get_version)"
+# Version will be updated dynamically
+MENU_VERSION="$(get_version)"
 
 # Menu colors
 MENU_HEADER="\033[1;36m"  # Cyan bold
@@ -94,6 +95,9 @@ display_menu() {
 }
 
 show_header() {
+    # Update version each time header is shown
+    MENU_VERSION="$(get_version)"
+    
     clear
     echo -e "${MENU_HEADER}======================================${MENU_RESET}"
     echo -e "${MENU_HEADER}       NAS Mount Manager Menu         ${MENU_RESET}"
