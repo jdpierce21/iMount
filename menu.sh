@@ -956,7 +956,9 @@ main_menu() {
         printf "Select option: "
         read -r choice
         
-        case ${choice,,} in  # Convert to lowercase
+        # Convert to lowercase using tr for compatibility
+        choice_lower=$(echo "$choice" | tr '[:upper:]' '[:lower:]')
+        case $choice_lower in
             q|quit|exit) exit 0 ;;
             1) mount_all ;;
             2) unmount_all ;;

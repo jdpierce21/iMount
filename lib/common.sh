@@ -242,15 +242,24 @@ validate_host() {
     fi
     
     # Test basic connectivity
-    if ! ping -c 1 -W 2 "$host" >/dev/null 2>&1; then
-        if [[ "$show_messages" == "true" ]]; then
-            error "✗ Host is NOT reachable"
+    if command -v ping >/dev/null 2>&1; then
+        if ! ping -c 1 -W 2 "$host" >/dev/null 2>&1; then
+            if [[ "$show_messages" == "true" ]]; then
+                error "✗ Host is NOT reachable"
+            fi
+            return 1
         fi
-        return 1
+        if [[ "$show_messages" == "true" ]]; then
+            success "✓ Host is reachable"
+        fi
+    else
+        # If ping is not available, skip to port test
+        if [[ "$show_messages" == "true" ]]; then
+            warning "ping command not found, skipping ICMP test"
+        fi
     fi
     
     if [[ "$show_messages" == "true" ]]; then
-        success "✓ Host is reachable"
         echo "Testing SMB connection..."
     fi
     
