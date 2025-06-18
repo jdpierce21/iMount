@@ -114,7 +114,14 @@ get_install_url() {
 # === Directory Management ===
 ensure_dir() {
     local dir="$1"
-    [[ -d "$dir" ]] || mkdir -p "$dir"
+    if [[ ! -d "$dir" ]]; then
+        mkdir -p "$dir" || {
+            # If mkdir fails, check if dir was created by another process
+            if [[ ! -d "$dir" ]]; then
+                die "Failed to create directory: $dir"
+            fi
+        }
+    fi
 }
 
 # === Configuration Management ===
