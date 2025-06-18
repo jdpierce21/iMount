@@ -131,6 +131,22 @@ load_config() {
     
     if [[ -f "$config_file" ]]; then
         source "$config_file"
+        
+        # Validate SHARES array
+        if [[ ${#SHARES[@]} -eq 0 ]]; then
+            die "No shares configured" "Run setup to add shares"
+        fi
+        
+        # Check for shares containing commas or other invalid characters
+        local share
+        for share in "${SHARES[@]}"; do
+            if [[ "$share" =~ [,\;] ]]; then
+                die "Invalid share name: $share" "Share names cannot contain commas or semicolons"
+            fi
+            if [[ -z "$share" ]]; then
+                die "Empty share name detected" "Please check your config file"
+            fi
+        done
     else
         die "Configuration not found" "Run setup first"
     fi
@@ -171,6 +187,47 @@ validate_share_name() {
     if [[ ! "$share" =~ ^[a-zA-Z0-9_-]+$ ]]; then
         die "Invalid share name: $share" "Only letters, numbers, underscore, and hyphen allowed"
     fi
+}
+
+# Validate that a share exists on the remote NAS
+validate_remote_share() {
+    local share="$1"
+    local host="${2:-$NAS_HOST}"
+    local user="${3:-$NAS_USER}"
+    local pass="${4:-$NAS_PASS}"
+    
+    log_debug "Validating remote share: $share on $host"
+    
+    # Try to list the share using smbclient
+    if command -v smbclient >/dev/null 2>&1; then
+        local output
+        output=$(smbclient -L "//$host" -U "$user%$pass" -g 2>&1 | grep -E "^Disk\|$share\|" || true)
+        if [[ -n "$output" ]]; then
+            log_debug "Share $share found on remote host"
+            return 0
+        fi
+    fi
+    
+    # If smbclient not available, try basic SMB connection test
+    if is_macos; then
+        # Try to connect without mounting
+        local test_output
+        test_output=$(osascript -e "try
+            mount volume \"smb://$user:$pass@$host/$share\"
+            return \"success\"
+        on error
+            return \"failed\"
+        end try" 2>&1 || echo "failed")
+        
+        if [[ "$test_output" != "failed" ]]; then
+            # Unmount if we accidentally mounted it
+            diskutil unmount "/Volumes/$share" 2>/dev/null || true
+            return 0
+        fi
+    fi
+    
+    log_debug "Could not validate share $share on remote host"
+    return 1
 }
 
 # Validate host connection
@@ -278,6 +335,10 @@ log_error() {
 
 log_debug() {
     log "DEBUG" "$1"
+}
+
+log_warning() {
+    log "WARNING" "$1"
 }
 
 # Simplified troubleshooting logger

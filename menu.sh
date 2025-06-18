@@ -253,6 +253,21 @@ test_connection() {
     read -r
 }
 
+run_git_operations() {
+    echo -e "${MENU_STATUS}Running Git operations...${MENU_RESET}"
+    echo
+    
+    if [[ -x "./git.sh" ]]; then
+        ./git.sh
+    else
+        echo -e "${MENU_ERROR}Error: git.sh script not found or not executable${MENU_RESET}"
+    fi
+    
+    echo
+    echo "Press Enter to continue..."
+    read -r
+}
+
 edit_configuration() {
     while true; do
         show_header
@@ -738,7 +753,8 @@ main_menu() {
             "Test remote connection" \
             "Edit configuration" \
             "Manage Auto-mount" \
-            "View logs")
+            "View logs" \
+            "Git operations")
         
         case $choice in
             0) exit 0 ;;  # Quit
@@ -749,6 +765,7 @@ main_menu() {
             5) edit_configuration ;;
             6) manage_auto_mount ;;
             7) less logs/nas_mount.log ;;
+            8) run_git_operations ;;
             -1) ;;  # Invalid option, loop will refresh
         esac
     done

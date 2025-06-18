@@ -38,6 +38,13 @@ cmd_mount() {
             fi
         fi
         
+        # Validate share exists on remote (optional check)
+        if [[ "${VALIDATE_REMOTE_SHARES:-yes}" == "yes" ]]; then
+            if ! validate_remote_share "$share"; then
+                log_warning "Share '$share' may not exist on remote host - proceeding anyway"
+            fi
+        fi
+        
         # Ensure mount point exists
         log_debug "Creating mount point directory: $mount_point"
         ensure_dir "$mount_point"
