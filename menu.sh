@@ -172,7 +172,7 @@ get_mount_status_lines() {
     local lines=()
     
     lines+=("${MENU_STATUS}Current Mount Status:${MENU_RESET}")
-    lines+=("─────────────────────────────────────")
+    lines+=("")
     
     local share mount_point
     for share in "${SHARES[@]}"; do
@@ -197,7 +197,7 @@ get_auto_mount_status_lines() {
     else
         lines+=("${MENU_STATUS}Auto-mount Service Status:${MENU_RESET}")
     fi
-    lines+=("─────────────────────────────────────")
+    lines+=("")
     
     if is_macos; then
         local plist_path="$HOME/Library/LaunchAgents/com.jpierce.nas-mounts.plist"
@@ -888,7 +888,7 @@ display_table_menu() {
     # Main operations menu
     local main_ops=(
         "${MENU_OPTION}Main Operations:${MENU_RESET}"
-        "─────────────────────────────────────"
+        ""
         "[1] Mount all shares"
         "[2] Unmount all shares"
         "[3] Verify mounts (test read/write)"
@@ -900,7 +900,7 @@ display_table_menu() {
     # Config operations menu
     local config_ops=(
         "${MENU_OPTION}Configuration & Testing:${MENU_RESET}"
-        "─────────────────────────────────────"
+        ""
         "[5] Edit configuration"
         "[6] Test remote connection"
         "[7] Manage Auto-mount"
