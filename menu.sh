@@ -460,12 +460,49 @@ remove_share() {
                     # Confirm removal
                     echo
                     if confirm_action "Are you sure you want to remove '${MOUNT_DIR_PREFIX}${share_to_remove}'?"; then
+                        # Check if share is mounted and unmount it first
+                        local mount_point="${MOUNT_ROOT}/${MOUNT_DIR_PREFIX}${share_to_remove}"
+                        if is_mounted "$mount_point"; then
+                            echo -e "${MENU_STATUS}Unmounting share before removal...${MENU_RESET}"
+                            if is_macos; then
+                                umount "$mount_point" 2>/dev/null || diskutil unmount "$mount_point" 2>/dev/null || {
+                                    echo -e "${MENU_ERROR}Failed to unmount share. Please unmount manually first.${MENU_RESET}"
+                                    echo "Press Enter to continue..."
+                                    read -r
+                                    continue
+                                }
+                            else
+                                sudo umount "$mount_point" 2>/dev/null || {
+                                    echo -e "${MENU_ERROR}Failed to unmount share. Please unmount manually first.${MENU_RESET}"
+                                    echo "Press Enter to continue..."
+                                    read -r
+                                    continue
+                                }
+                            fi
+                            echo -e "${MENU_STATUS}Share unmounted successfully${MENU_RESET}"
+                        fi
+                        
+                        # Remove mount directory if it exists
+                        if [[ -d "$mount_point" ]]; then
+                            rmdir "$mount_point" 2>/dev/null || {
+                                echo -e "${MENU_ERROR}Warning: Could not remove mount directory${MENU_RESET}"
+                            }
+                        fi
+                        
                         # Remove from config file
-                        sed -i '' "s/\"$share_to_remove\"//g" config/config.sh
-                        # Clean up extra spaces and empty elements
-                        sed -i '' 's/  */ /g' config/config.sh
-                        sed -i '' 's/( /(/g' config/config.sh
-                        sed -i '' 's/ )/)/g' config/config.sh
+                        if is_macos; then
+                            sed -i '' "s/\"$share_to_remove\"//g" config/config.sh
+                            # Clean up extra spaces and empty elements
+                            sed -i '' 's/  */ /g' config/config.sh
+                            sed -i '' 's/( /(/g' config/config.sh
+                            sed -i '' 's/ )/)/g' config/config.sh
+                        else
+                            sed -i "s/\"$share_to_remove\"//g" config/config.sh
+                            # Clean up extra spaces and empty elements
+                            sed -i 's/  */ /g' config/config.sh
+                            sed -i 's/( /(/g' config/config.sh
+                            sed -i 's/ )/)/g' config/config.sh
+                        fi
                         
                         echo -e "${MENU_STATUS}Share '${MOUNT_DIR_PREFIX}${share_to_remove}' removed${MENU_RESET}"
                         
