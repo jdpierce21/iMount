@@ -12,6 +12,9 @@ source lib/common.sh
 source lib/platform.sh
 source lib/output.sh
 
+# Version
+readonly MENU_VERSION="1.0.0"
+
 # Menu colors
 MENU_HEADER="\033[1;36m"  # Cyan bold
 MENU_OPTION="\033[1;33m"  # Yellow bold
@@ -78,6 +81,7 @@ show_header() {
     clear
     echo -e "${MENU_HEADER}======================================${MENU_RESET}"
     echo -e "${MENU_HEADER}       NAS Mount Manager Menu         ${MENU_RESET}"
+    echo -e "${MENU_HEADER}            Version ${MENU_VERSION}             ${MENU_RESET}"
     echo -e "${MENU_HEADER}======================================${MENU_RESET}"
     echo
 }
