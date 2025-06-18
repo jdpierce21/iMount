@@ -207,6 +207,49 @@ ensure_stdin() {
     fi
 }
 
+# Read input with q/Q handling for quit
+# Usage: read_input "prompt" [var_name]
+# Returns: 0 if input provided, 1 if user quit with q/Q
+read_input() {
+    local prompt="$1"
+    local var_name="${2:-REPLY}"
+    local input
+    
+    read -p "$prompt" input
+    
+    # Check if user wants to quit (case-insensitive)
+    local lower_input=$(echo "$input" | tr '[:upper:]' '[:lower:]')
+    if [[ "$lower_input" == "q" ]]; then
+        return 1
+    fi
+    
+    # Set the variable
+    eval "$var_name=\"\$input\""
+    return 0
+}
+
+# Read secure input (password) with q/Q handling
+# Usage: read_secure_input "prompt" [var_name]
+# Returns: 0 if input provided, 1 if user quit with q/Q
+read_secure_input() {
+    local prompt="$1"
+    local var_name="${2:-REPLY}"
+    local input
+    
+    read -s -p "$prompt" input
+    echo  # New line after hidden input
+    
+    # Check if user wants to quit (case-insensitive)
+    local lower_input=$(echo "$input" | tr '[:upper:]' '[:lower:]')
+    if [[ "$lower_input" == "q" ]]; then
+        return 1
+    fi
+    
+    # Set the variable
+    eval "$var_name=\"\$input\""
+    return 0
+}
+
 # Get shell RC file
 get_shell_rc() {
     if [[ -f "$HOME/.zshrc" ]]; then
