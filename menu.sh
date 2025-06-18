@@ -122,32 +122,9 @@ show_header() {
     echo
 }
 
-# Table drawing functions
-draw_horizontal_line() {
-    local width=$1
-    printf "┌"
-    printf "─%.0s" $(seq 1 $width)
-    printf "┬"
-    printf "─%.0s" $(seq 1 $width)
-    printf "┐\n"
-}
-
-draw_middle_line() {
-    local width=$1
-    printf "├"
-    printf "─%.0s" $(seq 1 $width)
-    printf "┼"
-    printf "─%.0s" $(seq 1 $width)
-    printf "┤\n"
-}
-
-draw_bottom_line() {
-    local width=$1
-    printf "└"
-    printf "─%.0s" $(seq 1 $width)
-    printf "┴"
-    printf "─%.0s" $(seq 1 $width)
-    printf "┘\n"
+# Simple spacing functions
+draw_separator_line() {
+    echo
 }
 
 # Pad string to fixed width
@@ -872,8 +849,6 @@ view_auto_mount_logs() {
 }
 
 display_table_menu() {
-    local cell_width=41
-    
     # Get status content - using portable method instead of mapfile
     local mount_lines=()
     while IFS= read -r line; do
@@ -907,58 +882,67 @@ display_table_menu() {
         "[8] Git operations"
     )
     
-    # Draw top line
-    draw_horizontal_line $cell_width
-    
-    # Draw status row
+    # Display status section
     local max_lines=${#mount_lines[@]}
     if [[ ${#auto_mount_lines[@]} -gt $max_lines ]]; then
         max_lines=${#auto_mount_lines[@]}
     fi
     
     for ((i=0; i<max_lines; i++)); do
-        printf "│ "
+        # Left column - mount status
         if [[ $i -lt ${#mount_lines[@]} ]]; then
-            pad_string "${mount_lines[$i]}" $((cell_width - 1))
+            # Calculate padding for left column accounting for color codes
+            local left_line="${mount_lines[$i]}"
+            local clean_left=$(echo -e "$left_line" | sed 's/\x1b\[[0-9;]*m//g')
+            local left_len=${#clean_left}
+            local left_pad=$((45 - left_len))
+            
+            echo -en "$left_line"
+            printf "%*s" $left_pad ""
         else
-            printf "%*s" $((cell_width - 1)) ""
+            printf "%*s" 45 ""
         fi
-        printf "│ "
+        
+        # Right column - auto mount status
         if [[ $i -lt ${#auto_mount_lines[@]} ]]; then
-            pad_string "${auto_mount_lines[$i]}" $((cell_width - 1))
+            echo -e "${auto_mount_lines[$i]}"
         else
-            printf "%*s" $((cell_width - 1)) ""
+            echo ""
         fi
-        printf "│\n"
     done
     
-    # Draw middle line
-    draw_middle_line $cell_width
+    # Separator
+    echo
     
-    # Draw menu row
+    # Display menu section
     max_lines=${#main_ops[@]}
     if [[ ${#config_ops[@]} -gt $max_lines ]]; then
         max_lines=${#config_ops[@]}
     fi
     
     for ((i=0; i<max_lines; i++)); do
-        printf "│ "
+        # Left column - main operations
         if [[ $i -lt ${#main_ops[@]} ]]; then
-            pad_string "${main_ops[$i]}" $((cell_width - 1))
+            # Calculate padding for left column accounting for color codes
+            local left_line="${main_ops[$i]}"
+            local clean_left=$(echo -e "$left_line" | sed 's/\x1b\[[0-9;]*m//g')
+            local left_len=${#clean_left}
+            local left_pad=$((45 - left_len))
+            
+            echo -en "$left_line"
+            printf "%*s" $left_pad ""
         else
-            printf "%*s" $((cell_width - 1)) ""
+            printf "%*s" 45 ""
         fi
-        printf "│ "
+        
+        # Right column - configuration
         if [[ $i -lt ${#config_ops[@]} ]]; then
-            pad_string "${config_ops[$i]}" $((cell_width - 1))
+            echo -e "${config_ops[$i]}"
         else
-            printf "%*s" $((cell_width - 1)) ""
+            echo ""
         fi
-        printf "│\n"
     done
     
-    # Draw bottom line
-    draw_bottom_line $cell_width
     echo
 }
 
