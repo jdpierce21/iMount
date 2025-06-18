@@ -166,6 +166,46 @@ validate_share_name() {
     fi
 }
 
+# Validate host connection
+# Usage: validate_host "hostname/ip" [show_messages]
+# Returns: 0 if valid, 1 if not reachable, 2 if reachable but SMB not accessible
+validate_host() {
+    local host="$1"
+    local show_messages="${2:-true}"  # Default to showing messages
+    
+    if [[ "$show_messages" == "true" ]]; then
+        echo "Testing connection to $host..."
+    fi
+    
+    # Test basic connectivity
+    if ! ping -c 1 -W 2 "$host" >/dev/null 2>&1; then
+        if [[ "$show_messages" == "true" ]]; then
+            error "✗ Host is NOT reachable"
+        fi
+        return 1
+    fi
+    
+    if [[ "$show_messages" == "true" ]]; then
+        success "✓ Host is reachable"
+        echo "Testing SMB connection..."
+    fi
+    
+    # Test SMB port
+    if ! nc -zv -w2 "$host" 445 >/dev/null 2>&1; then
+        if [[ "$show_messages" == "true" ]]; then
+            error "✗ SMB port (445) is not accessible"
+            echo "Host is reachable but SMB service may not be running."
+        fi
+        return 2
+    fi
+    
+    if [[ "$show_messages" == "true" ]]; then
+        success "✓ SMB port (445) is open"
+    fi
+    
+    return 0
+}
+
 # === Logging ===
 log() {
     local level="$1"
