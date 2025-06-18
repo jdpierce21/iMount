@@ -99,11 +99,141 @@ show_header() {
     MENU_VERSION="$(get_version)"
     
     clear
-    echo -e "${MENU_HEADER}======================================${MENU_RESET}"
-    echo -e "${MENU_HEADER}       NAS Mount Manager Menu         ${MENU_RESET}"
-    echo -e "${MENU_HEADER}         Version: ${MENU_VERSION}         ${MENU_RESET}"
-    echo -e "${MENU_HEADER}======================================${MENU_RESET}"
+    # Table width is 83 characters (41 + 1 + 41)
+    local table_width=83
+    local header_width=38
+    
+    # Center the header relative to the table
+    local header1="======================================"
+    local header2="       NAS Mount Manager Menu         "
+    local header3="         Version: ${MENU_VERSION}         "
+    
+    # Calculate padding for centering relative to table
+    local pad=$(( (table_width - header_width) / 2 ))
+    
+    printf "%*s" $pad ""
+    echo -e "${MENU_HEADER}${header1}${MENU_RESET}"
+    printf "%*s" $pad ""
+    echo -e "${MENU_HEADER}${header2}${MENU_RESET}"
+    printf "%*s" $pad ""
+    echo -e "${MENU_HEADER}${header3}${MENU_RESET}"
+    printf "%*s" $pad ""
+    echo -e "${MENU_HEADER}${header1}${MENU_RESET}"
     echo
+}
+
+# Table drawing functions
+draw_horizontal_line() {
+    local width=$1
+    printf "┌"
+    printf "─%.0s" $(seq 1 $width)
+    printf "┬"
+    printf "─%.0s" $(seq 1 $width)
+    printf "┐\n"
+}
+
+draw_middle_line() {
+    local width=$1
+    printf "├"
+    printf "─%.0s" $(seq 1 $width)
+    printf "┼"
+    printf "─%.0s" $(seq 1 $width)
+    printf "┤\n"
+}
+
+draw_bottom_line() {
+    local width=$1
+    printf "└"
+    printf "─%.0s" $(seq 1 $width)
+    printf "┴"
+    printf "─%.0s" $(seq 1 $width)
+    printf "┘\n"
+}
+
+# Pad string to fixed width
+pad_string() {
+    local str="$1"
+    local width=$2
+    # Remove ANSI color codes for length calculation
+    local clean_str=$(echo -e "$str" | sed 's/\x1b\[[0-9;]*m//g')
+    local str_len=${#clean_str}
+    local pad_len=$((width - str_len))
+    
+    # Use echo -e to interpret color codes
+    echo -en "$str"
+    if [[ $pad_len -gt 0 ]]; then
+        printf "%*s" $pad_len ""
+    fi
+}
+
+# Get mount status as array
+get_mount_status_lines() {
+    load_config
+    local lines=()
+    
+    lines+=("${MENU_STATUS}Current Mount Status:${MENU_RESET}")
+    lines+=("─────────────────────────────────────")
+    
+    local share mount_point
+    for share in "${SHARES[@]}"; do
+        mount_point="${MOUNT_ROOT}/${MOUNT_DIR_PREFIX}${share}"
+        
+        if is_mounted "$mount_point" && ls "$mount_point" >/dev/null 2>&1; then
+            lines+=("$(printf "%-20s %s✓ Mounted%s" "$share:" "$MENU_STATUS" "$MENU_RESET")")
+        else
+            lines+=("$(printf "%-20s %s✗ Not Mounted%s" "$share:" "$MENU_ERROR" "$MENU_RESET")")
+        fi
+    done
+    
+    printf '%s\n' "${lines[@]}"
+}
+
+# Get auto-mount status as array  
+get_auto_mount_status_lines() {
+    local lines=()
+    
+    if is_macos; then
+        lines+=("${MENU_STATUS}Launch Agent Status:${MENU_RESET}")
+    else
+        lines+=("${MENU_STATUS}Auto-mount Service Status:${MENU_RESET}")
+    fi
+    lines+=("─────────────────────────────────────")
+    
+    if is_macos; then
+        local plist_path="$HOME/Library/LaunchAgents/com.jpierce.nas-mounts.plist"
+        
+        if [[ -f "$plist_path" ]]; then
+            lines+=("$(printf "%-20s %s✓ Installed%s" "Installation:" "$MENU_STATUS" "$MENU_RESET")")
+            
+            local launchctl_output
+            launchctl_output=$(launchctl list 2>/dev/null || true)
+            
+            if echo "$launchctl_output" | grep -q "com.jpierce.nas-mounts"; then
+                lines+=("$(printf "%-20s %s✓ Loaded%s" "Status:" "$MENU_STATUS" "$MENU_RESET")")
+            else
+                lines+=("$(printf "%-20s %s✗ Not Loaded%s" "Status:" "$MENU_ERROR" "$MENU_RESET")")
+            fi
+        else
+            lines+=("$(printf "%-20s %s✗ Not Installed%s" "Installation:" "$MENU_ERROR" "$MENU_RESET")")
+        fi
+    else
+        local service_path
+        service_path=$(get_systemd_service_path)
+        
+        if [[ -f "$service_path" ]]; then
+            lines+=("$(printf "%-20s %s✓ Installed%s" "Installation:" "$MENU_STATUS" "$MENU_RESET")")
+            
+            if systemctl --user is-active "${SYSTEMD_SERVICE_NAME}.service" >/dev/null 2>&1; then
+                lines+=("$(printf "%-20s %s✓ Active%s" "Status:" "$MENU_STATUS" "$MENU_RESET")")
+            else
+                lines+=("$(printf "%-20s %s✗ Not Active%s" "Status:" "$MENU_ERROR" "$MENU_RESET")")
+            fi
+        else
+            lines+=("$(printf "%-20s %s✗ Not Installed%s" "Installation:" "$MENU_ERROR" "$MENU_RESET")")
+        fi
+    fi
+    
+    printf '%s\n' "${lines[@]}"
 }
 
 show_mount_status() {
@@ -741,36 +871,114 @@ view_auto_mount_logs() {
     read -r
 }
 
+display_table_menu() {
+    local cell_width=41
+    
+    # Get status content
+    local mount_lines=()
+    mapfile -t mount_lines < <(get_mount_status_lines)
+    
+    local auto_mount_lines=()
+    mapfile -t auto_mount_lines < <(get_auto_mount_status_lines)
+    
+    # Main operations menu
+    local main_ops=(
+        "${MENU_OPTION}Main Operations:${MENU_RESET}"
+        "─────────────────────────────────────"
+        "[1] Mount all shares"
+        "[2] Unmount all shares"
+        "[3] Verify mounts (test read/write)"
+        "[4] View logs"
+        ""
+        "[Q] Quit"
+    )
+    
+    # Config operations menu
+    local config_ops=(
+        "${MENU_OPTION}Configuration & Testing:${MENU_RESET}"
+        "─────────────────────────────────────"
+        "[5] Edit configuration"
+        "[6] Test remote connection"
+        "[7] Manage Auto-mount"
+        "[8] Git operations"
+    )
+    
+    # Draw top line
+    draw_horizontal_line $cell_width
+    
+    # Draw status row
+    local max_lines=${#mount_lines[@]}
+    if [[ ${#auto_mount_lines[@]} -gt $max_lines ]]; then
+        max_lines=${#auto_mount_lines[@]}
+    fi
+    
+    for ((i=0; i<max_lines; i++)); do
+        printf "│ "
+        if [[ $i -lt ${#mount_lines[@]} ]]; then
+            pad_string "${mount_lines[$i]}" $((cell_width - 1))
+        else
+            printf "%*s" $((cell_width - 1)) ""
+        fi
+        printf "│ "
+        if [[ $i -lt ${#auto_mount_lines[@]} ]]; then
+            pad_string "${auto_mount_lines[$i]}" $((cell_width - 1))
+        else
+            printf "%*s" $((cell_width - 1)) ""
+        fi
+        printf "│\n"
+    done
+    
+    # Draw middle line
+    draw_middle_line $cell_width
+    
+    # Draw menu row
+    max_lines=${#main_ops[@]}
+    if [[ ${#config_ops[@]} -gt $max_lines ]]; then
+        max_lines=${#config_ops[@]}
+    fi
+    
+    for ((i=0; i<max_lines; i++)); do
+        printf "│ "
+        if [[ $i -lt ${#main_ops[@]} ]]; then
+            pad_string "${main_ops[$i]}" $((cell_width - 1))
+        else
+            printf "%*s" $((cell_width - 1)) ""
+        fi
+        printf "│ "
+        if [[ $i -lt ${#config_ops[@]} ]]; then
+            pad_string "${config_ops[$i]}" $((cell_width - 1))
+        else
+            printf "%*s" $((cell_width - 1)) ""
+        fi
+        printf "│\n"
+    done
+    
+    # Draw bottom line
+    draw_bottom_line $cell_width
+    echo
+}
+
 # === Main Menu ===
 main_menu() {
     while true; do
         show_header
-        show_mount_status
-        show_auto_mount_status
+        display_table_menu
         
-        echo -e "${MENU_OPTION}Main Menu Options:${MENU_RESET}"
+        # Simple input prompt
+        printf "Select option: "
+        read -r choice
         
-        local choice=$(display_menu "Select option: " \
-            "Mount all shares" \
-            "Unmount all shares" \
-            "Verify mounts (test read/write)" \
-            "Test remote connection" \
-            "Edit configuration" \
-            "Manage Auto-mount" \
-            "View logs" \
-            "Git operations")
-        
-        case $choice in
-            0) exit 0 ;;  # Quit
+        case ${choice,,} in  # Convert to lowercase
+            q|quit|exit) exit 0 ;;
             1) mount_all ;;
             2) unmount_all ;;
             3) verify_mounts ;;
-            4) test_connection ;;
+            4) less logs/nas_mount.log ;;
             5) edit_configuration ;;
-            6) manage_auto_mount ;;
-            7) less logs/nas_mount.log ;;
+            6) test_connection ;;
+            7) manage_auto_mount ;;
             8) run_git_operations ;;
-            -1) ;;  # Invalid option, loop will refresh
+            *) echo -e "${MENU_ERROR}Invalid option. Please try again.${MENU_RESET}"; sleep 1 ;;
         esac
     done
 }
