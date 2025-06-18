@@ -206,7 +206,43 @@ validate_host() {
     return 0
 }
 
-# === Logging ===
+# === Logging Configuration ===
+# These can be overridden by environment variables
+readonly LOG_MAX_SIZE_MB="${LOG_MAX_SIZE_MB:-10}"  # Max log file size in MB
+readonly LOG_MAX_FILES="${LOG_MAX_FILES:-5}"       # Number of rotated logs to keep
+readonly LOG_MAX_AGE_DAYS="${LOG_MAX_AGE_DAYS:-30}" # Delete logs older than this
+
+# === Logging Functions ===
+# Rotate logs if needed
+rotate_logs() {
+    local log_file="$1"
+    local max_size_bytes=$((LOG_MAX_SIZE_MB * 1024 * 1024))
+    
+    # Check if log file exists and needs rotation
+    if [[ -f "$log_file" ]]; then
+        local file_size=$(stat -f%z "$log_file" 2>/dev/null || stat -c%s "$log_file" 2>/dev/null || echo 0)
+        
+        if [[ $file_size -gt $max_size_bytes ]]; then
+            # Rotate existing logs
+            for i in $(seq $((LOG_MAX_FILES - 1)) -1 1); do
+                [[ -f "${log_file}.$i" ]] && mv "${log_file}.$i" "${log_file}.$((i + 1))"
+            done
+            
+            # Move current log to .1
+            mv "$log_file" "${log_file}.1"
+            
+            # Remove oldest log if it exists
+            [[ -f "${log_file}.${LOG_MAX_FILES}" ]] && rm -f "${log_file}.${LOG_MAX_FILES}"
+        fi
+    fi
+    
+    # Clean up old logs
+    if command -v find >/dev/null 2>&1; then
+        find "$(dirname "$log_file")" -name "$(basename "$log_file")*" -type f -mtime +${LOG_MAX_AGE_DAYS} -delete 2>/dev/null || true
+    fi
+}
+
+# Main logging function
 log() {
     local level="$1"
     local message="$2"
@@ -214,6 +250,9 @@ log() {
     
     log_file=$(get_log_file)
     ensure_dir "$(dirname "$log_file")"
+    
+    # Rotate logs if needed
+    rotate_logs "$log_file"
     
     # Ensure log file exists
     touch "$log_file"
@@ -232,6 +271,19 @@ log_error() {
 
 log_debug() {
     log "DEBUG" "$1"
+}
+
+# Simplified troubleshooting logger
+# Usage: log_troubleshoot "Operation failed" "Error details"
+log_troubleshoot() {
+    local context="${1:-Unknown}"
+    local details="${2:-}"
+    
+    if [[ -n "$details" ]]; then
+        log "TROUBLESHOOT" "$context - $details"
+    else
+        log "TROUBLESHOOT" "$context"
+    fi
 }
 
 # Simplified - just use log_info for everything

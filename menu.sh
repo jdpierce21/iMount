@@ -720,6 +720,7 @@ main_menu() {
 # Check for updates (returns 0 if up to date or updated, 1 if not)
 check_for_updates() {
     echo -e "${MENU_STATUS}Checking for updates...${MENU_RESET}"
+    log_troubleshoot "Update check started"
     
     # Ensure we're in a git repo
     if ! command -v git >/dev/null 2>&1 || [[ ! -d .git ]]; then
