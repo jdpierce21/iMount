@@ -12,8 +12,24 @@ source lib/common.sh
 source lib/platform.sh
 source lib/output.sh
 
-# Version
-readonly MENU_VERSION="1.0.0"
+# Get version from git
+get_version() {
+    local version
+    if command -v git >/dev/null 2>&1 && [[ -d .git ]]; then
+        # Try to get tag first, otherwise use commit hash
+        version=$(git describe --tags --always --dirty 2>/dev/null || git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+        # Add branch name if not on master/main
+        local branch=$(git branch --show-current 2>/dev/null)
+        if [[ -n "$branch" ]] && [[ "$branch" != "master" ]] && [[ "$branch" != "main" ]]; then
+            version="${version} (${branch})"
+        fi
+    else
+        version="1.0.0"
+    fi
+    echo "$version"
+}
+
+readonly MENU_VERSION="$(get_version)"
 
 # Menu colors
 MENU_HEADER="\033[1;36m"  # Cyan bold
@@ -81,7 +97,7 @@ show_header() {
     clear
     echo -e "${MENU_HEADER}======================================${MENU_RESET}"
     echo -e "${MENU_HEADER}       NAS Mount Manager Menu         ${MENU_RESET}"
-    echo -e "${MENU_HEADER}            Version ${MENU_VERSION}             ${MENU_RESET}"
+    echo -e "${MENU_HEADER}         Version: ${MENU_VERSION}         ${MENU_RESET}"
     echo -e "${MENU_HEADER}======================================${MENU_RESET}"
     echo
 }
