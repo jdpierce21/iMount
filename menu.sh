@@ -874,12 +874,16 @@ view_auto_mount_logs() {
 display_table_menu() {
     local cell_width=41
     
-    # Get status content
+    # Get status content - using portable method instead of mapfile
     local mount_lines=()
-    mapfile -t mount_lines < <(get_mount_status_lines)
+    while IFS= read -r line; do
+        mount_lines+=("$line")
+    done < <(get_mount_status_lines)
     
     local auto_mount_lines=()
-    mapfile -t auto_mount_lines < <(get_auto_mount_status_lines)
+    while IFS= read -r line; do
+        auto_mount_lines+=("$line")
+    done < <(get_auto_mount_status_lines)
     
     # Main operations menu
     local main_ops=(
