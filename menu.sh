@@ -717,5 +717,73 @@ main_menu() {
     done
 }
 
+# Check for updates
+check_for_updates() {
+    echo -e "${MENU_STATUS}Checking for updates...${MENU_RESET}"
+    
+    # Ensure we're in a git repo
+    if ! command -v git >/dev/null 2>&1 || [[ ! -d .git ]]; then
+        echo -e "${MENU_ERROR}Git not available or not a git repository${MENU_RESET}"
+        return 1
+    fi
+    
+    # Fetch latest changes from remote
+    if ! git fetch origin master --quiet 2>/dev/null; then
+        echo -e "${MENU_ERROR}Failed to check for updates (network issue?)${MENU_RESET}"
+        return 1
+    fi
+    
+    # Get current and remote commit hashes
+    local current_commit=$(git rev-parse HEAD 2>/dev/null)
+    local remote_commit=$(git rev-parse origin/master 2>/dev/null)
+    
+    if [[ "$current_commit" == "$remote_commit" ]]; then
+        echo -e "${MENU_STATUS}✓ Already up to date${MENU_RESET}"
+        return 0
+    fi
+    
+    # Check if there are local changes
+    if ! git diff --quiet || ! git diff --cached --quiet; then
+        echo -e "${MENU_ERROR}You have uncommitted local changes${MENU_RESET}"
+        echo "Please commit or stash your changes before updating."
+        echo
+        echo "Press Enter to continue without updating..."
+        read -r
+        return 1
+    fi
+    
+    # Show what's new
+    echo -e "${MENU_OPTION}Updates available!${MENU_RESET}"
+    echo
+    echo "Changes:"
+    git log --oneline HEAD..origin/master | head -10
+    echo
+    
+    # Ask user if they want to update
+    if confirm_action "Do you want to update now?"; then
+        echo -e "${MENU_STATUS}Updating...${MENU_RESET}"
+        if git pull origin master; then
+            echo -e "${MENU_STATUS}✓ Update successful!${MENU_RESET}"
+            echo "Restarting menu with new version..."
+            sleep 2
+            exec "$0" "$@"  # Restart the script
+        else
+            echo -e "${MENU_ERROR}Update failed!${MENU_RESET}"
+            echo "Press Enter to continue..."
+            read -r
+            return 1
+        fi
+    else
+        echo "Skipping update. Press Enter to continue..."
+        read -r
+    fi
+}
+
+# Auto-update check (can be disabled with --no-update flag)
+if [[ "${1:-}" != "--no-update" ]]; then
+    check_for_updates
+    echo
+fi
+
 # Start the menu
 main_menu
