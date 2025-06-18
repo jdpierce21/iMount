@@ -44,7 +44,9 @@ cmd_mount() {
         
         # Get mount command
         mount_cmd=$(get_mount_command "$share" "$mount_point")
-        log_debug "Generated mount command: $mount_cmd"
+        # Log mount command with password masked
+        local masked_cmd="${mount_cmd/password=[^,]*/password=***}"
+        log_debug "Generated mount command: $masked_cmd"
         
         # Execute mount
         progress "Mounting $share"
