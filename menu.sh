@@ -104,27 +104,49 @@ show_mount_status() {
     echo
 }
 
-show_launch_agent_status() {
-    echo -e "${MENU_STATUS}Launch Agent Status:${MENU_RESET}"
+show_auto_mount_status() {
+    if is_macos; then
+        echo -e "${MENU_STATUS}Launch Agent Status:${MENU_RESET}"
+    else
+        echo -e "${MENU_STATUS}Auto-mount Service Status:${MENU_RESET}"
+    fi
     echo "-------------------------------------"
     
-    local plist_path="$HOME/Library/LaunchAgents/com.jpierce.nas-mounts.plist"
-    
-    if [[ -f "$plist_path" ]]; then
-        printf "%-20s %b%s%b\n" "Installation:" "${MENU_STATUS}" "✓ Installed" "${MENU_RESET}"
+    if is_macos; then
+        local plist_path="$HOME/Library/LaunchAgents/com.jpierce.nas-mounts.plist"
         
-        # Capture launchctl output to variable first for reliable checking
-        local launchctl_output
-        launchctl_output=$(launchctl list 2>/dev/null || true)
-        
-        # Check if our service is in the output
-        if echo "$launchctl_output" | grep -q "com.jpierce.nas-mounts"; then
-            printf "%-20s %b%s%b\n" "Status:" "${MENU_STATUS}" "✓ Loaded" "${MENU_RESET}"
+        if [[ -f "$plist_path" ]]; then
+            printf "%-20s %b%s%b\n" "Installation:" "${MENU_STATUS}" "✓ Installed" "${MENU_RESET}"
+            
+            # Capture launchctl output to variable first for reliable checking
+            local launchctl_output
+            launchctl_output=$(launchctl list 2>/dev/null || true)
+            
+            # Check if our service is in the output
+            if echo "$launchctl_output" | grep -q "com.jpierce.nas-mounts"; then
+                printf "%-20s %b%s%b\n" "Status:" "${MENU_STATUS}" "✓ Loaded" "${MENU_RESET}"
+            else
+                printf "%-20s %b%s%b\n" "Status:" "${MENU_ERROR}" "✗ Not Loaded" "${MENU_RESET}"
+            fi
         else
-            printf "%-20s %b%s%b\n" "Status:" "${MENU_ERROR}" "✗ Not Loaded" "${MENU_RESET}"
+            printf "%-20s %b%s%b\n" "Installation:" "${MENU_ERROR}" "✗ Not Installed" "${MENU_RESET}"
         fi
     else
-        printf "%-20s %b%s%b\n" "Installation:" "${MENU_ERROR}" "✗ Not Installed" "${MENU_RESET}"
+        local service_path
+        service_path=$(get_systemd_service_path)
+        
+        if [[ -f "$service_path" ]]; then
+            printf "%-20s %b%s%b\n" "Installation:" "${MENU_STATUS}" "✓ Installed" "${MENU_RESET}"
+            
+            # Check systemd service status
+            if systemctl --user is-active "${SYSTEMD_SERVICE_NAME}.service" >/dev/null 2>&1; then
+                printf "%-20s %b%s%b\n" "Status:" "${MENU_STATUS}" "✓ Active" "${MENU_RESET}"
+            else
+                printf "%-20s %b%s%b\n" "Status:" "${MENU_ERROR}" "✗ Not Active" "${MENU_RESET}"
+            fi
+        else
+            printf "%-20s %b%s%b\n" "Installation:" "${MENU_ERROR}" "✗ Not Installed" "${MENU_RESET}"
+        fi
     fi
     echo
 }
@@ -478,48 +500,89 @@ edit_credentials() {
     read -r
 }
 
-manage_launch_agent() {
+manage_auto_mount() {
     while true; do
         show_header
-        show_launch_agent_status
+        show_auto_mount_status
         
-        echo -e "${MENU_OPTION}Launch Agent Options:${MENU_RESET}"
+        if is_macos; then
+            echo -e "${MENU_OPTION}Launch Agent Options:${MENU_RESET}"
+        else
+            echo -e "${MENU_OPTION}Auto-mount Service Options:${MENU_RESET}"
+        fi
         
-        local choice=$(display_menu "Select option: " \
-            "Install/Update Launch Agent" \
-            "Uninstall Launch Agent" \
-            "Load Launch Agent" \
-            "Unload Launch Agent" \
-            "View Launch Agent logs")
+        local choice
+        if is_macos; then
+            choice=$(display_menu "Select option: " \
+                "Install/Update Launch Agent" \
+                "Uninstall Launch Agent" \
+                "Load Launch Agent" \
+                "Unload Launch Agent" \
+                "View Launch Agent logs")
+        else
+            choice=$(display_menu "Select option: " \
+                "Install/Update Auto-mount Service" \
+                "Uninstall Auto-mount Service" \
+                "Start Auto-mount Service" \
+                "Stop Auto-mount Service" \
+                "View Service logs")
+        fi
         
         case $choice in
             0) return ;;  # Back to main menu
-            1) install_launch_agent ;;
-            2) uninstall_launch_agent ;;
-            3) load_launch_agent ;;
-            4) unload_launch_agent ;;
-            5) view_launch_logs ;;
+            1) install_auto_mount ;;
+            2) uninstall_auto_mount ;;
+            3) load_auto_mount ;;
+            4) unload_auto_mount ;;
+            5) view_auto_mount_logs ;;
             -1) ;;  # Invalid option, loop will refresh
         esac
     done
 }
 
-install_launch_agent() {
+install_auto_mount() {
     echo
-    echo -e "${MENU_STATUS}Installing Launch Agent...${MENU_RESET}"
-    ./utils/setup_auto_mount.sh
+    if is_macos; then
+        echo -e "${MENU_STATUS}Installing Launch Agent...${MENU_RESET}"
+    else
+        echo -e "${MENU_STATUS}Installing Auto-mount Service...${MENU_RESET}"
+    fi
+    
+    # Use the platform-specific function from platform.sh
+    if create_auto_mount_service "$SCRIPT_DIR/mount.sh"; then
+        echo -e "${MENU_STATUS}Installation successful!${MENU_RESET}"
+    else
+        echo -e "${MENU_ERROR}Installation failed!${MENU_RESET}"
+    fi
+    
     echo "Press Enter to continue..."
     read -r
 }
 
-uninstall_launch_agent() {
+uninstall_auto_mount() {
     echo
-    if confirm_action "Are you sure you want to uninstall the Launch Agent?"; then
-        echo -e "${MENU_STATUS}Uninstalling Launch Agent...${MENU_RESET}"
-        # Use modern launchctl commands
-        launchctl bootout gui/$(id -u)/com.jpierce.nas-mounts 2>/dev/null || true
-        rm -f "$HOME/Library/LaunchAgents/com.jpierce.nas-mounts.plist"
-        echo "Launch Agent uninstalled"
+    local confirm_msg
+    if is_macos; then
+        confirm_msg="Are you sure you want to uninstall the Launch Agent?"
+    else
+        confirm_msg="Are you sure you want to uninstall the Auto-mount Service?"
+    fi
+    
+    if confirm_action "$confirm_msg"; then
+        if is_macos; then
+            echo -e "${MENU_STATUS}Uninstalling Launch Agent...${MENU_RESET}"
+        else
+            echo -e "${MENU_STATUS}Uninstalling Auto-mount Service...${MENU_RESET}"
+        fi
+        
+        # Use the platform-specific function from platform.sh
+        remove_auto_mount_service
+        
+        if is_macos; then
+            echo -e "${MENU_STATUS}Launch Agent uninstalled${MENU_RESET}"
+        else
+            echo -e "${MENU_STATUS}Auto-mount Service uninstalled${MENU_RESET}"
+        fi
     else
         echo "Uninstall cancelled."
     fi
@@ -527,37 +590,75 @@ uninstall_launch_agent() {
     read -r
 }
 
-load_launch_agent() {
+load_auto_mount() {
     echo
-    echo -e "${MENU_STATUS}Loading Launch Agent...${MENU_RESET}"
-    # Use modern launchctl commands
-    launchctl bootstrap gui/$(id -u) "$HOME/Library/LaunchAgents/com.jpierce.nas-mounts.plist" 2>/dev/null || {
-        # If already loaded, just start it
-        launchctl kickstart -k gui/$(id -u)/com.jpierce.nas-mounts 2>/dev/null || true
-    }
-    echo "Launch Agent loaded/restarted"
-    echo "Press Enter to continue..."
-    read -r
-}
-
-unload_launch_agent() {
-    echo
-    echo -e "${MENU_STATUS}Unloading Launch Agent...${MENU_RESET}"
-    # Use modern launchctl commands
-    launchctl bootout gui/$(id -u)/com.jpierce.nas-mounts 2>/dev/null || true
-    echo "Launch Agent unloaded"
-    echo "Press Enter to continue..."
-    read -r
-}
-
-view_launch_logs() {
-    echo
-    echo -e "${MENU_STATUS}Recent Launch Agent logs:${MENU_RESET}"
-    echo "-------------------------------------"
-    if [[ -f "logs/launchagent.log" ]]; then
-        tail -n 20 logs/launchagent.log
+    if is_macos; then
+        echo -e "${MENU_STATUS}Loading Launch Agent...${MENU_RESET}"
+        local plist_path
+        plist_path=$(get_launchagent_path)
+        
+        if [[ -f "$plist_path" ]]; then
+            launchctl unload "$plist_path" 2>/dev/null || true
+            if launchctl load "$plist_path"; then
+                echo -e "${MENU_STATUS}Launch Agent loaded successfully${MENU_RESET}"
+            else
+                echo -e "${MENU_ERROR}Failed to load Launch Agent${MENU_RESET}"
+            fi
+        else
+            echo -e "${MENU_ERROR}Launch Agent not installed${MENU_RESET}"
+        fi
     else
-        echo "No logs found"
+        echo -e "${MENU_STATUS}Starting Auto-mount Service...${MENU_RESET}"
+        if systemctl --user start "${SYSTEMD_SERVICE_NAME}.service"; then
+            echo -e "${MENU_STATUS}Service started successfully${MENU_RESET}"
+        else
+            echo -e "${MENU_ERROR}Failed to start service${MENU_RESET}"
+        fi
+    fi
+    echo "Press Enter to continue..."
+    read -r
+}
+
+unload_auto_mount() {
+    echo
+    if is_macos; then
+        echo -e "${MENU_STATUS}Unloading Launch Agent...${MENU_RESET}"
+        local plist_path
+        plist_path=$(get_launchagent_path)
+        
+        if launchctl unload "$plist_path" 2>/dev/null; then
+            echo -e "${MENU_STATUS}Launch Agent unloaded${MENU_RESET}"
+        else
+            echo -e "${MENU_ERROR}Failed to unload Launch Agent${MENU_RESET}"
+        fi
+    else
+        echo -e "${MENU_STATUS}Stopping Auto-mount Service...${MENU_RESET}"
+        if systemctl --user stop "${SYSTEMD_SERVICE_NAME}.service"; then
+            echo -e "${MENU_STATUS}Service stopped successfully${MENU_RESET}"
+        else
+            echo -e "${MENU_ERROR}Failed to stop service${MENU_RESET}"
+        fi
+    fi
+    echo "Press Enter to continue..."
+    read -r
+}
+
+view_auto_mount_logs() {
+    echo
+    if is_macos; then
+        echo -e "${MENU_STATUS}Recent Launch Agent logs:${MENU_RESET}"
+        echo "-------------------------------------"
+        local log_dir
+        log_dir=$(get_log_dir)
+        if [[ -f "$log_dir/launchagent.log" ]]; then
+            tail -n 20 "$log_dir/launchagent.log"
+        else
+            echo "No logs found"
+        fi
+    else
+        echo -e "${MENU_STATUS}Recent Service logs:${MENU_RESET}"
+        echo "-------------------------------------"
+        journalctl --user -u "${SYSTEMD_SERVICE_NAME}.service" -n 20 --no-pager || echo "No logs found"
     fi
     echo
     echo "Press Enter to continue..."
@@ -569,7 +670,7 @@ main_menu() {
     while true; do
         show_header
         show_mount_status
-        show_launch_agent_status
+        show_auto_mount_status
         
         echo -e "${MENU_OPTION}Main Menu Options:${MENU_RESET}"
         
@@ -579,7 +680,7 @@ main_menu() {
             "Verify mounts (test read/write)" \
             "Test remote connection" \
             "Edit configuration" \
-            "Manage Launch Agent" \
+            "Manage Auto-mount" \
             "View logs")
         
         case $choice in
@@ -589,7 +690,7 @@ main_menu() {
             3) verify_mounts ;;
             4) test_connection ;;
             5) edit_configuration ;;
-            6) manage_launch_agent ;;
+            6) manage_auto_mount ;;
             7) less logs/nas_mount.log ;;
             -1) ;;  # Invalid option, loop will refresh
         esac
