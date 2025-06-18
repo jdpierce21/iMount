@@ -717,19 +717,21 @@ main_menu() {
     done
 }
 
-# Check for updates
+# Check for updates (returns 0 if up to date or updated, 1 if not)
 check_for_updates() {
     echo -e "${MENU_STATUS}Checking for updates...${MENU_RESET}"
     
     # Ensure we're in a git repo
     if ! command -v git >/dev/null 2>&1 || [[ ! -d .git ]]; then
         echo -e "${MENU_ERROR}Git not available or not a git repository${MENU_RESET}"
+        echo "Cannot verify if software is up to date."
         return 1
     fi
     
     # Fetch latest changes from remote
     if ! git fetch origin master --quiet 2>/dev/null; then
         echo -e "${MENU_ERROR}Failed to check for updates (network issue?)${MENU_RESET}"
+        echo "Cannot verify if software is up to date."
         return 1
     fi
     
@@ -742,25 +744,30 @@ check_for_updates() {
         return 0
     fi
     
+    # Updates are required
+    echo -e "${MENU_ERROR}⚠ Updates are required!${MENU_RESET}"
+    echo
+    echo "Your version: $(git rev-parse --short HEAD)"
+    echo "Latest version: $(git rev-parse --short origin/master)"
+    echo
+    echo "Changes in the new version:"
+    git log --oneline HEAD..origin/master | head -10
+    echo
+    
     # Check if there are local changes
     if ! git diff --quiet || ! git diff --cached --quiet; then
         echo -e "${MENU_ERROR}You have uncommitted local changes${MENU_RESET}"
         echo "Please commit or stash your changes before updating."
         echo
-        echo "Press Enter to continue without updating..."
-        read -r
+        echo "To bypass update check (not recommended):"
+        echo "  ./menu.sh --skip-update-check"
         return 1
     fi
     
-    # Show what's new
-    echo -e "${MENU_OPTION}Updates available!${MENU_RESET}"
+    # Force update
+    echo -e "${MENU_OPTION}This software requires updating before use.${MENU_RESET}"
     echo
-    echo "Changes:"
-    git log --oneline HEAD..origin/master | head -10
-    echo
-    
-    # Ask user if they want to update
-    if confirm_action "Do you want to update now?"; then
+    if confirm_action "Update now?"; then
         echo -e "${MENU_STATUS}Updating...${MENU_RESET}"
         if git pull origin master; then
             echo -e "${MENU_STATUS}✓ Update successful!${MENU_RESET}"
@@ -769,19 +776,56 @@ check_for_updates() {
             exec "$0" "$@"  # Restart the script
         else
             echo -e "${MENU_ERROR}Update failed!${MENU_RESET}"
-            echo "Press Enter to continue..."
-            read -r
+            echo
+            echo "Please fix the issue and try again."
+            echo "To bypass update check (not recommended):"
+            echo "  ./menu.sh --skip-update-check"
             return 1
         fi
     else
-        echo "Skipping update. Press Enter to continue..."
-        read -r
+        echo
+        echo "Update cancelled. This software requires the latest version to run."
+        echo "To bypass update check (not recommended):"
+        echo "  ./menu.sh --skip-update-check"
+        return 1
     fi
 }
 
-# Auto-update check (can be disabled with --no-update flag)
-if [[ "${1:-}" != "--no-update" ]]; then
-    check_for_updates
+# Parse command line arguments
+SKIP_UPDATE_CHECK=false
+SHOW_HELP=false
+
+for arg in "$@"; do
+    case "$arg" in
+        --skip-update-check)
+            SKIP_UPDATE_CHECK=true
+            ;;
+        --help|-h)
+            SHOW_HELP=true
+            ;;
+    esac
+done
+
+# Show help if requested
+if [[ "$SHOW_HELP" == "true" ]]; then
+    echo "NAS Mount Manager Menu"
+    echo
+    echo "Usage: $0 [options]"
+    echo
+    echo "Options:"
+    echo "  --skip-update-check    Skip update check (not recommended)"
+    echo "  --help, -h            Show this help message"
+    echo
+    exit 0
+fi
+
+# Check for updates unless explicitly skipped
+if [[ "$SKIP_UPDATE_CHECK" == "false" ]]; then
+    if ! check_for_updates; then
+        echo
+        echo -e "${MENU_ERROR}Exiting - updates required${MENU_RESET}"
+        exit 1
+    fi
     echo
 fi
 
