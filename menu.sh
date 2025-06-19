@@ -102,21 +102,15 @@ show_header() {
     local header_width=38
     
     # Center the header relative to the table
-    local header1="===================================="
-    local header2="             iMount Menu            "
-    local header3="        Version: ${MENU_VERSION}    "
+    local header_divider="====================================================================================="
+    local header1="iMount | Verison: ${MENU_VERSION}"
     
     # Calculate padding for centering relative to table
     local pad=$(( (table_width - header_width) / 2 ))
     
-    printf "%*s" $pad ""
+    echo -e "${MENU_HEADER}${header_divider}${MENU_RESET}"
     echo -e "${MENU_HEADER}${header1}${MENU_RESET}"
-    printf "%*s" $pad ""
-    echo -e "${MENU_HEADER}${header2}${MENU_RESET}"
-    printf "%*s" $pad ""
-    echo -e "${MENU_HEADER}${header3}${MENU_RESET}"
-    printf "%*s" $pad ""
-    echo -e "${MENU_HEADER}${header1}${MENU_RESET}"
+    echo -e "${MENU_HEADER}${header_divider}${MENU_RESET}"
     echo
 }
 
