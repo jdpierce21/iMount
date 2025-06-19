@@ -47,19 +47,20 @@ confirm_action() {
     local default="${2:-no}"  # Default to "no" if not specified
     echo -e "${MENU_ERROR}${message}${MENU_RESET}"
     
-    # Show options with default indicated
-    if [[ "$default" == "yes" ]]; then
-        echo "[1] Yes (default)" >&2
-        echo "[2] No" >&2
-    else
-        echo "[1] Yes" >&2
-        echo "[2] No (default)" >&2
-    fi
+    # Show options
+    echo "[1] Yes" >&2
+    echo "[2] No" >&2
     echo "[Q] Exit/Back" >&2
     echo >&2
     
-    # Get input
-    read -p "Confirm: " choice
+    # Get input with default shown in prompt
+    local default_num
+    if [[ "$default" == "yes" ]]; then
+        default_num="1"
+    else
+        default_num="2"
+    fi
+    read -p "Select option [$default_num]: " choice
     
     # Handle empty input (use default)
     if [[ -z "$choice" ]]; then
