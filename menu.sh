@@ -40,16 +40,46 @@ MENU_RESET="\033[0m"
 # === Menu Functions ===
 
 # Helper function for yes/no confirmations
-# Usage: confirm_action "message"
+# Usage: confirm_action "message" [default]
 # Returns: 0 for yes, 1 for no
 confirm_action() {
     local message="$1"
+    local default="${2:-no}"  # Default to "no" if not specified
     echo -e "${MENU_ERROR}${message}${MENU_RESET}"
     
-    local choice=$(display_menu "Confirm: " "Yes" "No")
+    # Show options with default indicated
+    if [[ "$default" == "yes" ]]; then
+        echo "[1] Yes (default)" >&2
+        echo "[2] No" >&2
+    else
+        echo "[1] Yes" >&2
+        echo "[2] No (default)" >&2
+    fi
+    echo "[Q] Exit/Back" >&2
+    echo >&2
+    
+    # Get input
+    read -p "Confirm: " choice
+    
+    # Handle empty input (use default)
+    if [[ -z "$choice" ]]; then
+        if [[ "$default" == "yes" ]]; then
+            return 0
+        else
+            return 1
+        fi
+    fi
+    
+    # Convert to lowercase for q/Q handling
+    choice="$(echo "$choice" | tr '[:upper:]' '[:lower:]')"
+    
+    # Handle quit
+    if [[ "$choice" == "q" ]]; then
+        return 1
+    fi
     
     case $choice in
-        1) return 0 ;;  # Yes
+        1|y|yes) return 0 ;;  # Yes
         *) return 1 ;;  # No or any other option
     esac
 }
@@ -1016,7 +1046,7 @@ check_for_updates() {
     # Force update
     echo -e "${MENU_OPTION}This software requires updating before use.${MENU_RESET}"
     echo
-    if confirm_action "Update now?"; then
+    if confirm_action "Update now?" "yes"; then
         echo -e "${MENU_STATUS}Updating...${MENU_RESET}"
         if git pull origin master; then
             echo -e "${MENU_STATUS}✓ Update successful!${MENU_RESET}"
