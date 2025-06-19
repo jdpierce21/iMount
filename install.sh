@@ -43,7 +43,7 @@ if [[ "${BASH_SOURCE[0]}" == "bash" ]] || [[ -z "${BASH_SOURCE[0]:-}" ]]; then
     # GitHub constants (can't source lib during bootstrap)
     # Use environment overrides if available
     readonly GITHUB_USER="${NAS_MOUNT_GITHUB_USER:-jdpierce21}"
-    readonly GITHUB_REPO="${NAS_MOUNT_GITHUB_REPO:-nas_mount}"
+    readonly GITHUB_REPO="${NAS_MOUNT_GITHUB_REPO:-iMount}"
     readonly GITHUB_BRANCH="${NAS_MOUNT_GITHUB_BRANCH:-master}"
     readonly GITHUB_URL="https://github.com/${GITHUB_USER}/${GITHUB_REPO}.git"
     

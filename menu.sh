@@ -1,5 +1,5 @@
 #!/bin/bash
-# Interactive CLI menu for NAS mount management
+# Interactive CLI menu for iMount 
 
 set -euo pipefail
 
@@ -23,8 +23,6 @@ get_version() {
         if [[ -n "$branch" ]] && [[ "$branch" != "master" ]] && [[ "$branch" != "main" ]]; then
             version="${version} (${branch})"
         fi
-    else
-        version="1.0.0"
     fi
     echo "$version"
 }
@@ -104,9 +102,9 @@ show_header() {
     local header_width=38
     
     # Center the header relative to the table
-    local header1="======================================"
-    local header2="       NAS Mount Manager Menu         "
-    local header3="         Version: ${MENU_VERSION}         "
+    local header1="===================================="
+    local header2="             iMount Menu            "
+    local header3="        Version: ${MENU_VERSION}    "
     
     # Calculate padding for centering relative to table
     local pad=$(( (table_width - header_width) / 2 ))
@@ -148,7 +146,7 @@ get_mount_status_lines() {
     load_config
     local lines=()
     
-    lines+=("${MENU_STATUS}Current Mount Status:${MENU_RESET}")
+    lines+=("${MENU_OPTION}Current Mount Status:${MENU_RESET}")
     lines+=("")
     
     local share mount_point
@@ -172,7 +170,7 @@ get_auto_mount_status_lines() {
     if is_macos; then
         lines+=("${MENU_STATUS}Launch Agent Status:${MENU_RESET}")
     else
-        lines+=("${MENU_STATUS}Auto-mount Service Status:${MENU_RESET}")
+        lines+=("${MENU_OPTION}Auto-mount Service Status:${MENU_RESET}")
     fi
     lines+=("")
     
@@ -215,7 +213,7 @@ get_auto_mount_status_lines() {
 
 show_mount_status() {
     load_config
-    echo -e "${MENU_STATUS}Current Mount Status:${MENU_RESET}"
+    echo -e "${MENU_OPTION}Current Mount Status:${MENU_RESET}"
     echo "-------------------------------------"
     
     local share mount_point status_text status_color
@@ -239,7 +237,7 @@ show_auto_mount_status() {
     if is_macos; then
         echo -e "${MENU_STATUS}Launch Agent Status:${MENU_RESET}"
     else
-        echo -e "${MENU_STATUS}Auto-mount Service Status:${MENU_RESET}"
+        echo -e "${MENU_OPTION}Auto-mount Service Status:${MENU_RESET}"
     fi
     echo "-------------------------------------"
     
@@ -399,10 +397,10 @@ edit_configuration() {
         
         local choice=$(display_menu "Select option: " \
             "Edit remote host" \
-            "Add a local mount" \
-            "Remove a local mount" \
+            "Add new mount" \
+            "Remove existing mount" \
             "Edit local mount root directory" \
-            "Edit credentials")
+            "Edit remote host credentials")
         
         case $choice in
             0) return ;;  # Back to main menu

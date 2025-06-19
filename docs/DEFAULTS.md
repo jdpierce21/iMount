@@ -128,7 +128,7 @@ NAS_MOUNT_DEFAULT_HOST="192.168.1.100" ./setup.sh
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `NAS_MOUNT_GITHUB_USER` | `jdpierce21` | GitHub username |
-| `NAS_MOUNT_GITHUB_REPO` | `nas_mount` | Repository name |
+| `NAS_MOUNT_GITHUB_REPO` | `iMount` | Repository name |
 | `NAS_MOUNT_GITHUB_BRANCH` | `master` | Branch name |
 
 ### Miscellaneous
@@ -162,7 +162,7 @@ export NAS_MOUNT_ROOT="/mnt/nas"
 ```bash
 # config/defaults.sh
 export NAS_MOUNT_GITHUB_USER="myusername"
-export NAS_MOUNT_GITHUB_REPO="nas_mount_fork"
+export NAS_MOUNT_GITHUB_REPO="iMount_fork"
 export NAS_MOUNT_GITHUB_BRANCH="main"
 ```
 
@@ -180,7 +180,7 @@ To install with custom defaults:
 
 1. First install normally:
    ```bash
-   curl -fsSL https://raw.githubusercontent.com/jdpierce21/nas_mount/master/install.sh | bash
+   curl -fsSL https://raw.githubusercontent.com/jdpierce21/iMount/master/install.sh | bash
    ```
 
 2. Create your defaults file:

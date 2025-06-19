@@ -52,7 +52,7 @@ readonly _DEFAULTS_SH_LOADED=1
 : ${DEFAULT_GITHUB_USER:="${NAS_MOUNT_GITHUB_USER:-jdpierce21}"}
 
 # GitHub repository name
-: ${DEFAULT_GITHUB_REPO:="${NAS_MOUNT_GITHUB_REPO:-nas_mount}"}
+: ${DEFAULT_GITHUB_REPO:="${NAS_MOUNT_GITHUB_REPO:-iMount}"}
 
 # GitHub branch
 : ${DEFAULT_GITHUB_BRANCH:="${NAS_MOUNT_GITHUB_BRANCH:-master}"}

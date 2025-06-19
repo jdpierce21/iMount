@@ -47,7 +47,7 @@
 # === GitHub Repository ===
 # Use your own fork
 #export NAS_MOUNT_GITHUB_USER="yourusername"
-#export NAS_MOUNT_GITHUB_REPO="nas_mount"
+#export NAS_MOUNT_GITHUB_REPO="iMount"
 #export NAS_MOUNT_GITHUB_BRANCH="main"
 
 # === Other Settings ===

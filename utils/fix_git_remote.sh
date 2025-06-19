@@ -6,7 +6,7 @@ git remote -v
 
 echo ""
 echo "Changing to SSH..."
-git remote set-url origin git@github.com:jdpierce21/nas_mount.git
+git remote set-url origin git@github.com:jdpierce21/iMount.git
 
 echo ""
 echo "New git remote:"

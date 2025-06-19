@@ -5,7 +5,7 @@ Automated mounting of network shares for macOS and Linux with robust error handl
 ## Installation
 
 ```bash
-cd ~ && curl -fsSL https://raw.githubusercontent.com/jdpierce21/nas_mount/master/install.sh | bash
+cd ~ && curl -fsSL https://raw.githubusercontent.com/jdpierce21/iMount/master/install.sh | bash
 ```
 
 **Note**: Always run from your home directory to avoid shell warnings if reinstalling.
