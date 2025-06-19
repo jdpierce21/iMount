@@ -31,7 +31,7 @@ get_version() {
 MENU_VERSION="$(get_version)"
 
 # Menu colors
-MENU_HEADER="\033[1;36m"  # Cyan bold
+MENU_HEADER="\033[1;34m"  # Dark blue bold
 MENU_OPTION="\033[1;33m"  # Yellow bold
 MENU_STATUS="\033[1;32m"  # Green bold
 MENU_ERROR="\033[1;31m"   # Red bold
@@ -162,7 +162,7 @@ get_auto_mount_status_lines() {
     local lines=()
     
     if is_macos; then
-        lines+=("${MENU_STATUS}Launch Agent Status:${MENU_RESET}")
+        lines+=("${MENU_OPTION}Launch Agent Status:${MENU_RESET}")
     else
         lines+=("${MENU_OPTION}Auto-mount Service Status:${MENU_RESET}")
     fi
@@ -229,7 +229,7 @@ show_mount_status() {
 
 show_auto_mount_status() {
     if is_macos; then
-        echo -e "${MENU_STATUS}Launch Agent Status:${MENU_RESET}"
+        echo -e "${MENU_OPTION}Launch Agent Status:${MENU_RESET}"
     else
         echo -e "${MENU_OPTION}Auto-mount Service Status:${MENU_RESET}"
     fi
