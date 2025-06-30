@@ -175,7 +175,9 @@ get_mount_status_lines() {
     lines+=("")
     
     local share mount_point
-    for share in "${SHARES[@]}"; do
+    # Sort shares alphabetically before displaying
+    local sorted_shares=($(printf '%s\n' "${SHARES[@]}" | sort))
+    for share in "${sorted_shares[@]}"; do
         mount_point="${MOUNT_ROOT}/${MOUNT_DIR_PREFIX}${share}"
         
         if is_mounted "$mount_point" && ls "$mount_point" >/dev/null 2>&1; then
@@ -242,7 +244,9 @@ show_mount_status() {
     echo "-------------------------------------"
     
     local share mount_point status_text status_color
-    for share in "${SHARES[@]}"; do
+    # Sort shares alphabetically before displaying
+    local sorted_shares=($(printf '%s\n' "${SHARES[@]}" | sort))
+    for share in "${sorted_shares[@]}"; do
         mount_point="${MOUNT_ROOT}/${MOUNT_DIR_PREFIX}${share}"
         
         if is_mounted "$mount_point" && ls "$mount_point" >/dev/null 2>&1; then
